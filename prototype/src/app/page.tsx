@@ -172,7 +172,10 @@ export default function Home() {
   return (
     <div className="shell">
       <aside className="side">
-        <div className="brand"><span>ADA</span><span className="brand-mark">Λ</span><span>console</span></div>
+        <div className="brand">
+          <div className="brand-line"><span>ADA</span><span className="brand-mark">Λ</span><span>console</span></div>
+          <div className="brand-subtitle">BBVA AI Banking Platform</div>
+        </div>
         <div className="side-scroll">
         <div className="nav"><NavButton label="Dashboard" section={section} setSection={setSection} setToast={setToast} setDisabledMenuModal={setDisabledMenuModal} disabled /></div>
         <div className="group-title">DATA LAKE</div>

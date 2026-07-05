@@ -3,6 +3,7 @@
 - [x] Crear estructura Speckit.
 - [x] Crear proyecto Next.js deployable.
 - [x] Implementar shell ADA Console.
+- [x] Anadir subtitulo BBVA AI Banking Platform bajo el logo ADA console.
 - [x] Cargar datos mock financieros.
 - [x] Implementar inventarios.
 - [x] Implementar creacion guiada.

@@ -129,6 +129,7 @@ Datos iniciales para una entidad financiera:
 La UI debe replicar patrones ADA Console:
 
 - Sidebar azul oscuro.
+- El bloque de marca del sidebar muestra ADA console y debajo el subtitulo `BBVA AI Banking Platform`.
 - Nueva seccion `AI AGENTS`.
 - `AI AGENTS` contiene AI Applications, ChatApps Collectives, Agents y MCPs.
 - `AI AGENTS` contiene tambien Skills.
