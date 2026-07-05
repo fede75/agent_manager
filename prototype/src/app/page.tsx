@@ -503,6 +503,7 @@ function Field({ label, value, set, options }: any) { return <div className="fie
 function DetailModal({ detail, close, state, entityName, createRequest, deleteAsset, cancelRequest, revoke, addToolToMcp, associateSkillToAgent, selectedUuaa, uuaas, profile }: any) {
   const asset = detail.kind === "application" ? state.applications.find((a: any) => a.id === detail.id) : detail.kind === "collective" ? state.collectives.find((c: any) => c.id === detail.id) : detail.kind === "agent" ? state.agents.find((a: any) => a.id === detail.id) : detail.kind === "skill" ? state.skills.find((skill: any) => skill.id === detail.id) : state.mcps.find((m: any) => m.id === detail.id);
   const [request, setRequest] = useState<any>({ uuaa: selectedUuaa, agentId: state.agents.find((a: any) => (a.uuaa || "KDIT") === selectedUuaa)?.id || state.agents[0]?.id, mcpId: state.mcps.find((m: any) => (m.uuaa || "KDIT") === selectedUuaa)?.id || state.mcps[0]?.id, skillId: state.skills.find((skill: any) => skill.owner_uuaa === selectedUuaa)?.id || state.skills[0]?.id, skillVersion: "", usageMode: "optional", access: "read", requestedToolIds: [], purpose: "Business controlled access", justification: "Requested from asset detail view", expiration: "31-12-2026" });
+  const [requestModal, setRequestModal] = useState<string | null>(null);
   const [toolDraft, setToolDraft] = useState<any>({ name: "", type: "read", resource: "", risk: "Medium" });
   if (!asset) return null;
 
@@ -541,6 +542,16 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
   const canRequestAgent = profile === "Project Owner" || profile === "Application Manager";
   const canRequestMcp = profile === "Project Owner" || profile === "AI Engineer";
   const canManageSkills = profile === "Project Owner" || profile === "AI Engineer";
+  const closeAll = () => {
+    setRequestModal(null);
+    close();
+  };
+  const openRequestModal = (type: string) => {
+    if (type === "application_agent") setRequest((r: any) => ({ ...r, agentId: filteredAgents[0]?.id || r.agentId }));
+    if (type === "agent_mcp" || type === "collective_mcp") setRequest((r: any) => ({ ...r, mcpId: filteredMcps[0]?.id || r.mcpId, requestedToolIds: [] }));
+    if (type === "agent_skill") setRequest((r: any) => ({ ...r, skillId: selectedSkill?.id || r.skillId, skillVersion: selectedSkillVersions[0]?.version || r.skillVersion }));
+    setRequestModal(type);
+  };
   const toolNames = (mcpId: string, toolIds: string[] = []) => {
     if (!toolIds.length) return "All tools matching access level";
     const mcp = state.mcps.find((m: any) => m.id === mcpId);
@@ -563,7 +574,7 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
       justification: request.justification,
       expiration: request.expiration,
     });
-    close();
+    closeAll();
   };
 
   const addToolFromDetail = () => {
@@ -584,7 +595,7 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
       justification: request.justification,
       expiration: request.expiration,
     });
-    close();
+    closeAll();
   };
 
   const submitAgentSkillRequest = () => {
@@ -608,7 +619,7 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
         expiration: request.expiration,
       });
     }
-    close();
+    closeAll();
   };
 
   const submitCollectiveMcpRequest = () => {
@@ -623,7 +634,42 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
       justification: request.justification,
       expiration: request.expiration,
     });
-    close();
+    closeAll();
+  };
+
+  const requestTitle = requestModal === "application_agent" ? "Request authorization to invoke an agent" : requestModal === "agent_skill" ? "Associate or request Skill access" : "Request access to an MCP";
+  const requestForm = () => {
+    if (requestModal === "application_agent") return (
+      <div className="modal-body form two">
+        <Field label="UUAA" value={request.uuaa} set={(v: string) => setRequest((r: any) => ({ ...r, uuaa: v, agentId: state.agents.find((a: any) => (a.uuaa || "KDIT") === v)?.id || "" }))} options={uuaas.map((u: string) => ({ id: u, name: u }))} />
+        <Field label="Agent requested" value={request.agentId} set={(v: string) => setRequest((r: any) => ({ ...r, agentId: v }))} options={filteredAgents} />
+        <div className="field"><label>Purpose</label><input value={request.purpose} onChange={(e) => setRequest((r: any) => ({ ...r, purpose: e.target.value }))} /></div>
+        <div className="field" style={{ gridColumn: "1 / -1" }}><label>Justification</label><textarea value={request.justification} onChange={(e) => setRequest((r: any) => ({ ...r, justification: e.target.value }))} /></div>
+        <div className="modal-form-actions"><button className="btn secondary" type="button" onClick={() => setRequestModal(null)}>Cancel</button><button className="btn" type="button" onClick={submitApplicationAgentRequest}>Submit Agent Acces Request!</button></div>
+      </div>
+    );
+    if (requestModal === "agent_skill") return (
+      <div className="modal-body form two">
+        <Field label="Skill" value={request.skillId} set={(v: string) => setRequest((r: any) => ({ ...r, skillId: v, skillVersion: state.skillVersions.find((version: any) => version.skill_id === v && version.status === "approved")?.version || "" }))} options={state.skills.map((skill: any) => ({ id: skill.id, name: `${skill.name} (${skill.owner_uuaa})` }))} />
+        <Field label="Approved version" value={request.skillVersion || selectedSkillVersions[0]?.version || ""} set={(v: string) => setRequest((r: any) => ({ ...r, skillVersion: v }))} options={selectedSkillVersions.map((version: any) => ({ id: version.version, name: version.version }))} />
+        <div className="field"><label>Usage mode</label><select value={request.usageMode} onChange={(e) => setRequest((r: any) => ({ ...r, usageMode: e.target.value }))}><option value="mandatory">mandatory</option><option value="optional">optional</option></select></div>
+        <div className="field"><label>Usage policy</label><input value={selectedSkill?.usage_policy || "-"} readOnly /></div>
+        <div className="field" style={{ gridColumn: "1 / -1" }}><label>Business justification</label><textarea value={request.justification} onChange={(e) => setRequest((r: any) => ({ ...r, justification: e.target.value }))} /></div>
+        <div className="modal-form-actions"><button className="btn secondary" type="button" onClick={() => setRequestModal(null)}>Cancel</button><button className="btn" type="button" onClick={submitAgentSkillRequest}>{selectedSkill?.usage_policy === "open" ? "Associate Skill" : "Request Skill Access"}</button></div>
+      </div>
+    );
+    return (
+      <div className="modal-body form two">
+        <Field label="UUAA" value={request.uuaa} set={(v: string) => setRequest((r: any) => ({ ...r, uuaa: v, mcpId: state.mcps.find((m: any) => (m.uuaa || "KDIT") === v)?.id || "", requestedToolIds: [] }))} options={uuaas.map((u: string) => ({ id: u, name: u }))} />
+        <Field label="MCP requested" value={request.mcpId} set={(v: string) => setRequest((r: any) => ({ ...r, mcpId: v, requestedToolIds: [] }))} options={filteredMcps} />
+        <div className="field"><label>Access level</label><select value={request.access} onChange={(e) => setRequest((r: any) => ({ ...r, access: e.target.value }))}><option value="read">Read tools</option><option value="write">Write tools</option><option value="full">Full MCP access</option><option value="custom">Specific tools</option></select></div>
+        <div className="field"><label>Purpose</label><input value={request.purpose} onChange={(e) => setRequest((r: any) => ({ ...r, purpose: e.target.value }))} /></div>
+        <div className="field"><label>Expiration</label><input value={request.expiration} onChange={(e) => setRequest((r: any) => ({ ...r, expiration: e.target.value }))} /></div>
+        {request.access === "custom" && <ToolChecklist tools={selectedMcp?.tools || []} selected={request.requestedToolIds} setSelected={(toolIds: string[]) => setRequest((r: any) => ({ ...r, requestedToolIds: toolIds }))} />}
+        <div className="field" style={{ gridColumn: "1 / -1" }}><label>Justification</label><textarea value={request.justification} onChange={(e) => setRequest((r: any) => ({ ...r, justification: e.target.value }))} /></div>
+        <div className="modal-form-actions"><button className="btn secondary" type="button" onClick={() => setRequestModal(null)}>Cancel</button><button className="btn" type="button" onClick={requestModal === "collective_mcp" ? submitCollectiveMcpRequest : submitAgentMcpRequest}>{requestModal === "collective_mcp" ? "Submit ChatApps Collective -> MCP request" : "Submit Agent -> MCP request"}</button></div>
+      </div>
+    );
   };
 
   return (
@@ -649,48 +695,17 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
           {(detail.kind === "agent" || detail.kind === "mcp") && <RegistryMapping kind={detail.kind} asset={asset} />}
 
           {detail.kind === "application" && <>
-            <SectionTable title="Authorized agents" rows={appAgentSubs.map((s: any) => ({ ...s, agent: entityName(s.targetId), actions: s.status === "Pending" ? "Cancel request" : "" }))} columns={["agent","purpose","approver","status","expiration"]} cancelRequest={cancelRequest} revoke={revoke} />
-            {canRequestAgent ? <div className="panel">
-              <div className="panel-head"><b>Request authorization to invoke an agent</b></div>
-              <div className="modal-body form two">
-                <Field label="UUAA" value={request.uuaa} set={(v: string) => setRequest((r: any) => ({ ...r, uuaa: v, agentId: state.agents.find((a: any) => (a.uuaa || "KDIT") === v)?.id || "" }))} options={uuaas.map((u: string) => ({ id: u, name: u }))} />
-                <Field label="Agent requested" value={request.agentId} set={(v: string) => setRequest((r: any) => ({ ...r, agentId: v }))} options={filteredAgents} />
-                <div className="field"><label>Purpose</label><input value={request.purpose} onChange={(e) => setRequest((r: any) => ({ ...r, purpose: e.target.value }))} /></div>
-                <div className="field" style={{ gridColumn: "1 / -1" }}><label>Justification</label><textarea value={request.justification} onChange={(e) => setRequest((r: any) => ({ ...r, justification: e.target.value }))} /></div>
-                <button className="btn" onClick={submitApplicationAgentRequest}>Submit Agent Acces Request!</button>
-              </div>
-            </div> : <div className="hint">Solo Application Manager o Project Owner pueden solicitar autorizacion para invocar agentes desde una aplicacion.</div>}
+            <SectionTable title="Authorized agents" rows={appAgentSubs.map((s: any) => ({ ...s, agent: entityName(s.targetId), actions: s.status === "Pending" ? "Cancel request" : "" }))} columns={["agent","purpose","approver","status","expiration"]} cancelRequest={cancelRequest} revoke={revoke} headerAction={canRequestAgent ? <button className="btn panel-action" type="button" onClick={() => openRequestModal("application_agent")}>New request</button> : null} />
+            {!canRequestAgent && <div className="hint">Solo Application Manager o Project Owner pueden solicitar autorizacion para invocar agentes desde una aplicacion.</div>}
           </>}
 
           {detail.kind === "agent" && <>
             <SectionTable title="Consumer applications" rows={agentApps.map((s: any) => ({ ...s, application: entityName(s.sourceId) }))} columns={["application","purpose","requester","status","expiration"]} cancelRequest={cancelRequest} />
-            <SectionTable title="Authorized MCPs" rows={agentMcps.map((s: any) => subscriptionDetail({ ...s, mcp: entityName(s.targetId) }))} columns={["mcp","accessScope","toolsScope","conditions","approver","status","expiration"]} cancelRequest={cancelRequest} />
-            <SectionTable title="Mandatory Skills" rows={agentSkillAssociations.filter((association: any) => association.usage_mode === "mandatory").map((association: any) => ({ ...association, skill: entityName(association.skill_id), version: association.skill_version, status: association.authorization_status, risk: state.skills.find((skill: any) => skill.id === association.skill_id)?.risk_level, owner: state.skills.find((skill: any) => skill.id === association.skill_id)?.skill_owner, upgradePolicy: association.upgrade_policy }))} columns={["skill","version","status","risk","owner","upgradePolicy"]} />
+            <SectionTable title="Authorized MCPs" rows={agentMcps.map((s: any) => subscriptionDetail({ ...s, mcp: entityName(s.targetId) }))} columns={["mcp","accessScope","toolsScope","conditions","approver","status","expiration"]} cancelRequest={cancelRequest} headerAction={canRequestMcp ? <button className="btn panel-action" type="button" onClick={() => openRequestModal("agent_mcp")}>New request</button> : null} />
+            <SectionTable title="Mandatory Skills" rows={agentSkillAssociations.filter((association: any) => association.usage_mode === "mandatory").map((association: any) => ({ ...association, skill: entityName(association.skill_id), version: association.skill_version, status: association.authorization_status, risk: state.skills.find((skill: any) => skill.id === association.skill_id)?.risk_level, owner: state.skills.find((skill: any) => skill.id === association.skill_id)?.skill_owner, upgradePolicy: association.upgrade_policy }))} columns={["skill","version","status","risk","owner","upgradePolicy"]} headerAction={canManageSkills ? <button className="btn panel-action" type="button" onClick={() => openRequestModal("agent_skill")}>New request</button> : null} />
             <SectionTable title="Optional Skills" rows={agentSkillAssociations.filter((association: any) => association.usage_mode === "optional").map((association: any) => ({ ...association, skill: entityName(association.skill_id), version: association.skill_version, status: association.authorization_status, risk: state.skills.find((skill: any) => skill.id === association.skill_id)?.risk_level, owner: state.skills.find((skill: any) => skill.id === association.skill_id)?.skill_owner, upgradePolicy: association.upgrade_policy }))} columns={["skill","version","status","risk","owner","upgradePolicy"]} />
-            {canManageSkills ? <div className="panel">
-              <div className="panel-head"><b>Associate or request Skill access</b></div>
-              <div className="modal-body form two">
-                <Field label="Skill" value={request.skillId} set={(v: string) => setRequest((r: any) => ({ ...r, skillId: v, skillVersion: state.skillVersions.find((version: any) => version.skill_id === v && version.status === "approved")?.version || "" }))} options={state.skills.map((skill: any) => ({ id: skill.id, name: `${skill.name} (${skill.owner_uuaa})` }))} />
-                <Field label="Approved version" value={request.skillVersion || selectedSkillVersions[0]?.version || ""} set={(v: string) => setRequest((r: any) => ({ ...r, skillVersion: v }))} options={selectedSkillVersions.map((version: any) => ({ id: version.version, name: version.version }))} />
-                <div className="field"><label>Usage mode</label><select value={request.usageMode} onChange={(e) => setRequest((r: any) => ({ ...r, usageMode: e.target.value }))}><option value="mandatory">mandatory</option><option value="optional">optional</option></select></div>
-                <div className="field"><label>Usage policy</label><input value={selectedSkill?.usage_policy || "-"} readOnly /></div>
-                <div className="field" style={{ gridColumn: "1 / -1" }}><label>Business justification</label><textarea value={request.justification} onChange={(e) => setRequest((r: any) => ({ ...r, justification: e.target.value }))} /></div>
-                <button className="btn" onClick={submitAgentSkillRequest}>{selectedSkill?.usage_policy === "open" ? "Associate Skill" : "Request Skill Access"}</button>
-              </div>
-            </div> : <div className="hint">Solo AI Engineer o Project Owner pueden asociar Skills a agentes.</div>}
-            {canRequestMcp ? <div className="panel">
-              <div className="panel-head"><b>Request access to an MCP</b></div>
-              <div className="modal-body form two">
-                <Field label="UUAA" value={request.uuaa} set={(v: string) => setRequest((r: any) => ({ ...r, uuaa: v, mcpId: state.mcps.find((m: any) => (m.uuaa || "KDIT") === v)?.id || "" , requestedToolIds: [] }))} options={uuaas.map((u: string) => ({ id: u, name: u }))} />
-                <Field label="MCP requested" value={request.mcpId} set={(v: string) => setRequest((r: any) => ({ ...r, mcpId: v, requestedToolIds: [] }))} options={filteredMcps} />
-                <div className="field"><label>Access level</label><select value={request.access} onChange={(e) => setRequest((r: any) => ({ ...r, access: e.target.value }))}><option value="read">Read tools</option><option value="write">Write tools</option><option value="full">Full MCP access</option><option value="custom">Specific tools</option></select></div>
-                <div className="field"><label>Purpose</label><input value={request.purpose} onChange={(e) => setRequest((r: any) => ({ ...r, purpose: e.target.value }))} /></div>
-                <div className="field"><label>Expiration</label><input value={request.expiration} onChange={(e) => setRequest((r: any) => ({ ...r, expiration: e.target.value }))} /></div>
-                {request.access === "custom" && <ToolChecklist tools={selectedMcp?.tools || []} selected={request.requestedToolIds} setSelected={(toolIds: string[]) => setRequest((r: any) => ({ ...r, requestedToolIds: toolIds }))} />}
-                <div className="field" style={{ gridColumn: "1 / -1" }}><label>Justification</label><textarea value={request.justification} onChange={(e) => setRequest((r: any) => ({ ...r, justification: e.target.value }))} /></div>
-                <button className="btn" onClick={submitAgentMcpRequest}>Submit Agent &rarr; MCP request</button>
-              </div>
-            </div> : <div className="hint">Solo AI Engineer o Project Owner pueden solicitar autorizacion para usar MCPs desde un agente.</div>}
+            {!canManageSkills && <div className="hint">Solo AI Engineer o Project Owner pueden asociar Skills a agentes.</div>}
+            {!canRequestMcp && <div className="hint">Solo AI Engineer o Project Owner pueden solicitar autorizacion para usar MCPs desde un agente.</div>}
           </>}
 
           {detail.kind === "mcp" && <>
@@ -712,20 +727,8 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
           </>}
 
           {detail.kind === "collective" && <>
-            <SectionTable title="Authorized MCPs" rows={collectiveMcps.map((s: any) => subscriptionDetail({ ...s, mcp: entityName(s.targetId) }))} columns={["mcp","accessScope","toolsScope","conditions","approver","status","expiration"]} cancelRequest={cancelRequest} revoke={revoke} />
-            {canRequestMcp ? <div className="panel">
-              <div className="panel-head"><b>Request access to an MCP</b></div>
-              <div className="modal-body form two">
-                <Field label="UUAA" value={request.uuaa} set={(v: string) => setRequest((r: any) => ({ ...r, uuaa: v, mcpId: state.mcps.find((m: any) => (m.uuaa || "KDIT") === v)?.id || "", requestedToolIds: [] }))} options={uuaas.map((u: string) => ({ id: u, name: u }))} />
-                <Field label="MCP requested" value={request.mcpId} set={(v: string) => setRequest((r: any) => ({ ...r, mcpId: v, requestedToolIds: [] }))} options={filteredMcps} />
-                <div className="field"><label>Access level</label><select value={request.access} onChange={(e) => setRequest((r: any) => ({ ...r, access: e.target.value }))}><option value="read">Read tools</option><option value="write">Write tools</option><option value="full">Full MCP access</option><option value="custom">Specific tools</option></select></div>
-                <div className="field"><label>Purpose</label><input value={request.purpose} onChange={(e) => setRequest((r: any) => ({ ...r, purpose: e.target.value }))} /></div>
-                <div className="field"><label>Expiration</label><input value={request.expiration} onChange={(e) => setRequest((r: any) => ({ ...r, expiration: e.target.value }))} /></div>
-                {request.access === "custom" && <ToolChecklist tools={selectedMcp?.tools || []} selected={request.requestedToolIds} setSelected={(toolIds: string[]) => setRequest((r: any) => ({ ...r, requestedToolIds: toolIds }))} />}
-                <div className="field" style={{ gridColumn: "1 / -1" }}><label>Justification</label><textarea value={request.justification} onChange={(e) => setRequest((r: any) => ({ ...r, justification: e.target.value }))} /></div>
-                <button className="btn" onClick={submitCollectiveMcpRequest}>Submit ChatApps Collective &rarr; MCP request</button>
-              </div>
-            </div> : <div className="hint">Solo AI Engineer o Project Owner pueden solicitar autorizacion para usar MCPs desde colectivos ChatApps.</div>}
+            <SectionTable title="Authorized MCPs" rows={collectiveMcps.map((s: any) => subscriptionDetail({ ...s, mcp: entityName(s.targetId) }))} columns={["mcp","accessScope","toolsScope","conditions","approver","status","expiration"]} cancelRequest={cancelRequest} revoke={revoke} headerAction={canRequestMcp ? <button className="btn panel-action" type="button" onClick={() => openRequestModal("collective_mcp")}>New request</button> : null} />
+            {!canRequestMcp && <div className="hint">Solo AI Engineer o Project Owner pueden solicitar autorizacion para usar MCPs desde colectivos ChatApps.</div>}
           </>}
 
           {detail.kind === "skill" && <>
@@ -740,6 +743,12 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
           </>}
         </div>
       </div>
+      {requestModal && <div className="modal-backdrop request-modal-layer">
+        <div className="modal request-modal">
+          <div className="modal-head"><h2>{requestTitle}</h2><button className="btn secondary" type="button" onClick={() => setRequestModal(null)}>Close</button></div>
+          {requestForm()}
+        </div>
+      </div>}
     </div>
   );
 }
@@ -766,14 +775,14 @@ function KeyValues({ data }: any) {
   return <table><tbody>{entries.map(([k, v]) => <tr key={k}><td>{k}</td><td>{typeof v === "string" ? badge(k, v) : String(v)}</td></tr>)}</tbody></table>;
 }
 
-function SectionTable({ title, rows, columns, cancelRequest, revoke }: any) {
+function SectionTable({ title, rows, columns, cancelRequest, revoke, headerAction }: any) {
   const hasActions = Boolean(cancelRequest || revoke);
   const action = (row: any) => {
     if (row.status === "Pending" && cancelRequest) return <button className="btn danger" onClick={() => cancelRequest(row.id)}>Cancel request</button>;
     if (row.status !== "Pending" && revoke) return <button className="btn danger" onClick={() => revoke(row.id)}>Remove subscription</button>;
     return "-";
   };
-  return <div className="panel relation-panel"><div className="panel-head"><b>{title}</b></div>{rows.length ? <table><thead><tr>{columns.map((c: string) => <th key={c}>{c}</th>)}{hasActions && <th>Actions</th>}</tr></thead><tbody>{rows.map((r: any) => <tr key={r.id}>{columns.map((c: string) => <td key={c}>{badge(c, r[c])}</td>)}{hasActions && <td>{action(r)}</td>}</tr>)}</tbody></table> : <div className="empty">No related records yet.</div>}</div>;
+  return <div className="panel relation-panel"><div className="panel-head"><b>{title}</b>{headerAction}</div>{rows.length ? <table><thead><tr>{columns.map((c: string) => <th key={c}>{c}</th>)}{hasActions && <th>Actions</th>}</tr></thead><tbody>{rows.map((r: any) => <tr key={r.id}>{columns.map((c: string) => <td key={c}>{badge(c, r[c])}</td>)}{hasActions && <td>{action(r)}</td>}</tr>)}</tbody></table> : <div className="empty">No related records yet.</div>}</div>;
 }
 
 function ToolChecklist({ tools, selected, setSelected }: any) {

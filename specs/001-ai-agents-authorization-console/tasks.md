@@ -29,4 +29,5 @@
 - [x] Implementar detalle de Skill con versiones, agentes, requests, governance y AWS Mapping.
 - [x] Implementar Skills mandatory/optional en detalle de Agent.
 - [x] Implementar solicitudes Agent -> Skill en Authorizations.
+- [x] Mover formularios de solicitud de acceso a modales abiertos con New request.
 - [x] Documentar ejecucion local y Vercel.

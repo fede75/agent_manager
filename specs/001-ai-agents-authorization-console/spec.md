@@ -142,6 +142,7 @@ La UI debe replicar patrones ADA Console:
 - La lista/tabla de Skills incluye columnas Name, Skill ID, Owner UUAA, Domain, Risk, Data Classification, Usage Policy, Latest Approved Version, Status, Agents Using, Pending Requests, Registry Provider y Registry Status.
 - El detalle de Skill muestra Overview, Versions, Agents Using This Skill, Authorization Requests, Governance y AWS Mapping como secciones visibles.
 - El detalle de Agent muestra Skills mandatory y optional, con acciones para asociar, solicitar acceso, cambiar version, retirar asociacion y ver detalle del Skill.
+- Las solicitudes de acceso no se muestran como formularios embebidos en las pantallas de detalle; cada listado relacionado ofrece una accion `New request` que abre una ventana/modal de solicitud.
 - Botones azules.
 - Badges de estado, riesgo, entorno y tipo.
 - Hints contextuales en cada pantalla.

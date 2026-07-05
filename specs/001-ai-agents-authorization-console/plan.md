@@ -43,6 +43,7 @@
 - El detalle de MCP incluye gestion de tools y listas de consumidores autorizados con revocacion.
 - El detalle de Skill muestra overview, versiones, agentes consumidores, requests relacionadas, governance y mapping AWS.
 - El detalle de Agent muestra Skills mandatory y optional, con asociacion por version concreta y solicitudes Agent -> Skill.
+- Los formularios de solicitud de acceso se abren en modal mediante botones `New request` en los listados relacionados.
 - Las opciones de menu que no pertenecen a `AI AGENTS`, excepto `Authorizations`, no cambian la seccion activa; abren un popup/modal con el aviso literal "Funcionlidad no habilitada en la Maqueta. Usar funcionalidades dentro del apartado AI Agents".
 
 ## AWS AgentCore Mapping

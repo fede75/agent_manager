@@ -103,9 +103,13 @@ tr:hover td { background: #fbfdff; }
 .modal { width: min(880px, 94vw); max-height: 90vh; overflow: auto; background: white; border-radius: 8px; box-shadow: 0 22px 60px rgba(0,0,0,.22); }
 .modal.wide { width: min(1180px, 96vw); }
 .modal.notice-modal { width: min(520px, 92vw); }
+.modal.request-modal { width: min(760px, 94vw); }
+.request-modal-layer { z-index: 20; background: rgba(18, 28, 42, .56); }
 .modal-head { padding: 16px 18px; border-bottom: 1px solid #dfe4ea; display: flex; justify-content: space-between; align-items: center; }
 .modal-body { padding: 18px; }
 .modal-foot { padding: 14px 18px; border-top: 1px solid #dfe4ea; display: flex; justify-content: flex-end; gap: 10px; }
+.modal-form-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; }
+.panel-action { background: #fff; color: #147fce; box-shadow: inset 0 0 0 1px rgba(255,255,255,.42); }
 .notice-text { margin: 0; color: #24364f; font-size: 15px; line-height: 1.5; }
 .result { padding: 14px; background: #f8fafc; border: 1px solid #d9e1ea; line-height: 1.55; }
 .relation-panel { margin-top: 16px; }
