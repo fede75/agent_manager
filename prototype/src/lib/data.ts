@@ -16,7 +16,7 @@ export type Agent = { id: string; name: string; type: string; owner: string; bus
 export type Tool = { id: string; name: string; description: string; type: ToolType; resource: string; sensitivity: Risk; risk: Risk; requiresApproval: boolean; status: Status; gatewayRoute?: string; toolSchema?: string };
 export type Mcp = { id: string; name: string; owner: string; businessArea: string; backendSystem: string; country: string; environment: string; risk: Risk; description: string; status: Status; tools: Tool[]; uuaa?: string; gatewayId?: string; mcpServerId?: string; protocol?: string; authMode?: AuthMode; identityMode?: IdentityMode; observability?: string };
 export type Skill = { id: string; ada_skill_id: string; name: string; description: string; descriptor_type: "AGENT_SKILL"; owner_uuaa: string; skill_owner: string; domain: string; status: SkillStatus; visibility: "public_internal" | "restricted"; usage_policy: SkillUsagePolicy; risk_level: Risk; data_classification: "internal" | "confidential" | "restricted"; allowed_agent_types: string[]; allowed_uuaas: string[]; tags: string[]; governance_reference: string; registry_provider: "AWS_AGENT_REGISTRY" | "INTERNAL" | "GIT" | "OTHER"; registry_id: string; registry_record_id: string; registry_record_arn: string; registry_record_status: "DRAFT" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "DEPRECATED"; registry_endpoint_type: "API" | "MCP_ENDPOINT" | "NONE"; last_sync_status: "never_synced" | "synced" | "sync_error"; last_sync_date: string; created_at: string; updated_at: string };
-export type SkillVersion = { id: string; ada_skill_version_id: string; skill_id: string; version: string; status: SkillVersionStatus; change_type: "patch" | "minor" | "major"; breaking_change: boolean; release_notes: string; registry_record_version: string; registry_record_revision_id: string; artifact_format: "SKILL_MD" | "MARKDOWN_PLUS_JSON" | "CUSTOM_JSON"; artifact_location: string; definition_json_location: string; instruction_summary: string; input_contract: string; output_contract: string; required_tools: string[]; required_mcp_servers: string[]; constraints: string[]; safety_notes: string[]; examples: string[]; compatible_runtimes: string[]; requires_recertification: boolean; published_at: string; deprecated_at: string; retirement_date: string };
+export type SkillVersion = { id: string; ada_skill_version_id: string; skill_id: string; version: string; status: SkillVersionStatus; change_type: "patch" | "minor" | "major"; breaking_change: boolean; release_notes: string; registry_record_version: string; registry_record_revision_id: string; artifact_format: "SKILL_MD" | "MARKDOWN_PLUS_JSON" | "CUSTOM_JSON"; artifact_location: string; definition_json_location: string; specification_markdown: string; instruction_summary: string; input_contract: string; output_contract: string; required_tools: string[]; required_mcp_servers: string[]; constraints: string[]; safety_notes: string[]; examples: string[]; compatible_runtimes: string[]; requires_recertification: boolean; published_at: string; deprecated_at: string; retirement_date: string };
 export type AgentSkillAssociation = { id: string; association_id: string; agent_id: string; skill_id: string; skill_version: string; authorization_status: "active" | "revoked" | "pending"; upgrade_policy: "pinned" | "auto_patch"; associated_by: string; associated_at: string; approval_request_id: string };
 export type Subscription = { id: string; type: RequestType; sourceId: string; targetId: string; mcpId?: string; accessLevel: AccessLevel; toolIds: string[]; purpose: string; requester: string; approver: string; status: Status; conditions: string; expiration: string; updated: string };
 export type AccessRequest = Subscription & { requestedAccess: AccessLevel; requestedToolIds: string[]; justification: string; skillId?: string; requestedVersion?: string; approvedVersion?: string; approvalPolicyApplied?: SkillUsagePolicy; riskLevel?: Risk };
@@ -100,6 +100,58 @@ const skill = (id: string, name: string, owner_uuaa: string, domain: string, ris
   updated_at: today,
 });
 
+const skillMarkdown = (skill_id: string, version: string) => {
+  const shortName = skill_id.split(".").pop()?.replaceAll("-", " ") || skill_id;
+  return `# ${skill_id} v${version}
+
+## Purpose
+This Skill defines the mandatory operating instructions an ADA agent must follow when using the ${shortName} capability in a BBVA financial workflow.
+
+## When To Use
+- Use only when the agent has an approved Agent -> Skill association for this exact version.
+- Use when the user request matches the business domain and the input context is sufficient.
+- Do not use for autonomous customer-impacting decisions.
+
+## Agent Instructions
+1. Read the full business context before producing an answer.
+2. Apply BBVA data classification and privacy rules before exposing any customer, account or case information.
+3. Produce grounded outputs with a short rationale and clear uncertainty markers.
+4. Escalate to a human owner when confidence is low, policy evidence is missing or the request implies regulated decisioning.
+
+## Input Contract
+- business_context: structured case, customer, policy or operational context.
+- requester_role: role invoking the agent.
+- jurisdiction: country or global scope.
+- evidence_refs: optional references used by the agent.
+
+## Output Contract
+- decision_or_recommendation: concise result.
+- rationale: evidence-based explanation.
+- controls_applied: list of validations or redactions performed.
+- escalation_required: true/false with reason.
+
+## Acceptance Criteria
+- The agent never invents policy, product, customer or account facts.
+- The answer preserves traceability to supplied evidence.
+- Restricted or confidential fields are masked unless explicitly allowed by the caller authorization.
+- The output is suitable for audit review.
+
+## Safety Constraints
+- No payment initiation, credit approval, customer blocking or legal conclusion can be executed by the Skill.
+- If the request requires write or critical action tools, the agent must confirm that an approved MCP subscription exists.
+- If personal data is present, minimize it in the final response.
+
+## Example
+Input: Customer service case with free-text complaint and CRM notes.
+
+Output:
+- classification: service_quality
+- rationale: complaint references branch waiting time and unresolved follow-up.
+- controls_applied: customer identifiers redacted.
+- escalation_required: false
+`;
+};
+
 const skillVersion = (skill_id: string, version: string, change_type: "patch" | "minor" | "major" = "minor", breaking_change = false): SkillVersion => ({
   id: `${skill_id}:${version}`,
   ada_skill_version_id: `${skill_id}:${version}`,
@@ -114,6 +166,7 @@ const skillVersion = (skill_id: string, version: string, change_type: "patch" | 
   artifact_format: "SKILL_MD",
   artifact_location: `s3://ada-agent-skills/${skill_id}/${version}/SKILL.md`,
   definition_json_location: `s3://ada-agent-skills/${skill_id}/${version}/definition.json`,
+  specification_markdown: skillMarkdown(skill_id, version),
   instruction_summary: "Reusable operating instructions and guardrails for regulated banking workflows.",
   input_contract: "Structured customer, case or policy context.",
   output_contract: "Grounded recommendation, summary or classification with rationale.",

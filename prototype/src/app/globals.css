@@ -113,6 +113,8 @@ tr:hover td { background: #fbfdff; }
 .notice-text { margin: 0; color: #24364f; font-size: 15px; line-height: 1.5; }
 .result { padding: 14px; background: #f8fafc; border: 1px solid #d9e1ea; line-height: 1.55; }
 .relation-panel { margin-top: 16px; }
+.markdown-document { padding: 16px; background: #fbfcfe; }
+.markdown-document pre { max-height: 420px; margin: 0; padding: 16px; overflow: auto; border: 1px solid #d8e0e9; border-radius: 8px; background: #fff; color: #243142; font-family: Arial, Helvetica, sans-serif; font-size: 13px; line-height: 1.55; white-space: pre-wrap; }
 .empty { padding: 18px; color: #6b7787; background: #f8fafc; }
 .check-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 10px; border: 1px solid #d8e0e9; border-radius: 6px; background: #f8fafc; }
 .check-row { min-height: 36px; display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: #fff; border: 1px solid #e0e5eb; border-radius: 6px; }

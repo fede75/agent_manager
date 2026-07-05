@@ -26,6 +26,8 @@ ADA actua como la capa corporativa de gobierno y autorizacion. AWS AgentCore se 
 
 Un Skill representa un activo corporativo reutilizable compuesto por instrucciones, procedimientos, criterios operativos, contratos de entrada/salida y metadatos de gobierno que puede ser asociado a agentes para guiar su comportamiento.
 
+Cada version aprobada de un Skill debe incluir una especificacion en Markdown (`SKILL.md`) con, al menos: objetivo, alcance, instrucciones obligatorias para el agente, contrato de entrada/salida, criterios de aceptacion, restricciones, controles de seguridad, ejemplos de uso y evidencias esperadas. En la maqueta se debe mostrar un ejemplo realista de esa especificacion dentro del detalle del Skill.
+
 En la maqueta, los Skills no se ejecutan realmente. La consola solo modela su registro, gobierno, versionado, asociacion a agentes y autorizacion.
 
 Modelo conceptual:
@@ -108,6 +110,7 @@ Regla clave: un agente siempre se asocia a una version concreta de un Skill. Nun
 - Metadatos AgentCore Gateway en MCPs/tools: gateway id, MCP server id, protocol, auth mode, identity mode, gateway route y tool schema.
 - Metadatos AWS Agent Registry en Skills: registry provider, registry id, record id, record ARN, descriptor type, record status, endpoint type, sync status y sync date.
 - Metadatos AWS Agent Registry en Skill Versions: record version, revision id, artifact format, artifact location y definition JSON location.
+- Contenido de especificacion Markdown por version de Skill, simulando el `SKILL.md` que se registraria como artefacto versionado.
 - Alertas de gobierno: MCPs sin tools, tools pendientes de clasificacion, accesos criticos, solicitudes pendientes y expiraciones.
 
 ## Data Requirements
@@ -140,7 +143,7 @@ La UI debe replicar patrones ADA Console:
 - La vista por defecto de aplicaciones y ChatApps Collectives es en cards modernas con opcion de cambiar a tabla.
 - Skills se muestra por defecto en vista cards modernas, con opcion de cambiar a lista/tabla enterprise densa.
 - La lista/tabla de Skills incluye columnas Name, Skill ID, Owner UUAA, Domain, Risk, Data Classification, Usage Policy, Latest Approved Version, Status, Agents Using, Pending Requests, Registry Provider y Registry Status.
-- El detalle de Skill muestra Overview, Versions, Agents Using This Skill, Authorization Requests, Governance y AWS Mapping como secciones visibles.
+- El detalle de Skill muestra Overview, Versions, Skill Specification, Agents Using This Skill, Authorization Requests, Governance y AWS Mapping como secciones visibles.
 - El detalle de Agent muestra una unica lista de Skills utilizados por el agente, con accion `New request` para asociar o solicitar acceso por version concreta.
 - Las solicitudes de acceso no se muestran como formularios embebidos en las pantallas de detalle; cada listado relacionado ofrece una accion `New request` que abre una ventana/modal de solicitud.
 - Botones azules.
