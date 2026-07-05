@@ -143,7 +143,7 @@ La UI debe replicar patrones ADA Console:
 - La vista por defecto de aplicaciones y ChatApps Collectives es en cards modernas con opcion de cambiar a tabla.
 - Skills se muestra por defecto en vista cards modernas, con opcion de cambiar a lista/tabla enterprise densa.
 - La lista/tabla de Skills incluye columnas Name, Skill ID, Owner UUAA, Domain, Risk, Usage Policy, Latest Approved Version, Registry Status, Agents Using y Pending Requests.
-- El detalle de Skill se organiza en bloques reducidos y alineados con Registry: Registry, Governance, Current Version, Skill Specification, Agents Using This Skill y Authorization Requests.
+- El detalle de Skill se organiza en bloques reducidos y alineados con Registry: Registry, Governance, Current Version, Skill Specification y Agents Using This Skill. Las solicitudes Agent -> Skill se consultan solo desde `PLATFORM > Authorizations`.
 - El detalle de Agent muestra una unica lista de Skills utilizados por el agente, con accion `New request` para asociar o solicitar acceso por version concreta.
 - Las solicitudes de acceso no se muestran como formularios embebidos en las pantallas de detalle; cada listado relacionado ofrece una accion `New request` que abre una ventana/modal de solicitud.
 - Botones azules.
