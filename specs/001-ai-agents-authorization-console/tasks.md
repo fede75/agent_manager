@@ -14,7 +14,8 @@
 - [x] Eliminar flujos Collective -> Agent.
 - [x] Implementar detalle de suscripcion MCP con scope y tools autorizadas.
 - [x] Implementar revocacion desde consumidores y desde MCP.
-- [x] Implementar vista cards por defecto en Applications y ChatApps Collectives.
+- [x] Implementar vista cards por defecto en AI Applications y ChatApps Collectives.
+- [x] Renombrar Applications a AI Applications en la navegacion de la maqueta.
 - [x] Eliminar Audit, Policies y Simulator de la funcionalidad visible.
 - [x] Mostrar popup/modal al pulsar opciones de menu fuera de AI Agents.
 - [x] Mover Authorization Requests desde AI Agents a la opcion existente Platform > Authorizations.

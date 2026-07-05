@@ -79,7 +79,7 @@ La UI debe replicar patrones ADA Console:
 
 - Sidebar azul oscuro.
 - Nueva seccion `AI AGENTS`.
-- `AI AGENTS` contiene Applications, ChatApps Collectives, Agents y MCPs.
+- `AI AGENTS` contiene AI Applications, ChatApps Collectives, Agents y MCPs.
 - La opcion existente `Authorizations` dentro de `PLATFORM` abre la gestion de Authorization Requests de la maqueta.
 - Las opciones de menu fuera de `AI AGENTS`, excepto `Authorizations`, se muestran solo para conservar el look & feel ADA Console y, al pulsarlas, deben abrir un popup/modal con el mensaje "Funcionlidad no habilitada en la Maqueta. Usar funcionalidades dentro del apartado AI Agents".
 - Header superior con breadcrumb, acciones e identidad de proyecto.

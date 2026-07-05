@@ -31,7 +31,7 @@
 
 ## UX Decisions
 
-- Applications y ChatApps Collectives abren por defecto en vista cards.
+- AI Applications y ChatApps Collectives abren por defecto en vista cards.
 - Ambas vistas mantienen un toggle para alternar cards/tabla.
 - La seccion `AI AGENTS` no incluye una opcion propia de Authorization Requests; usa la opcion corporativa existente `Authorizations`.
 - El detalle de MCP incluye gestion de tools y listas de consumidores autorizados con revocacion.
