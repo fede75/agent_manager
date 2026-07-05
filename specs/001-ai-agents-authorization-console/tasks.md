@@ -28,6 +28,7 @@
 - [x] Implementar vista cards/lista en Skills con cards por defecto.
 - [x] Implementar detalle de Skill con versiones, agentes, requests, governance y AWS Mapping.
 - [x] Anadir especificacion Markdown versionada de Skill y mostrar ejemplo en detalle.
+- [x] Anadir campo de especificacion Markdown en el alta de Skill.
 - [x] Simplificar detalle de Skill a campos esenciales alineados con Registry.
 - [x] Retirar Authorization Requests del detalle de Skill y mantenerlas solo en Platform > Authorizations.
 - [x] Simplificar Skills de Agent a una unica lista de Skills utilizados, sin categorias adicionales de uso.

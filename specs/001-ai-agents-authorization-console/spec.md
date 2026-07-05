@@ -83,7 +83,7 @@ Regla clave: un agente siempre se asocia a una version concreta de un Skill. Nun
 - Inventario de Skills reutilizables y versionados, filtrado por UUAA.
 - Los inventarios de AI Applications, ChatApps Collectives, Agents y MCPs se filtran por la UUAA seleccionada en el breadcrumb superior.
 - Alta guiada de aplicaciones, colectivos, agentes, MCPs y tools.
-- Alta guiada de Skills.
+- Alta guiada de Skills, incluyendo un campo editable para pegar o redactar la especificacion Markdown inicial (`SKILL.md`).
 - Alta guiada de versiones de Skill.
 - Solicitudes Application &rarr; Agent.
 - Solicitudes Agent &rarr; MCP.

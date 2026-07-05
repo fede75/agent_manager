@@ -42,6 +42,7 @@
 - La seccion `AI AGENTS` incluye Skills como repositorio corporativo versionado.
 - El detalle de MCP incluye gestion de tools y listas de consumidores autorizados con revocacion.
 - El detalle de Skill muestra bloques curados de Registry, Governance, Current Version, especificacion Markdown y agentes consumidores; las requests relacionadas se gestionan solo en `PLATFORM > Authorizations`.
+- El alta de Skill permite introducir la especificacion Markdown inicial que se guarda como `SKILL.md` de la version `1.0.0`.
 - El detalle de Agent muestra una unica lista de Skills utilizados, con asociacion por version concreta y solicitudes Agent -> Skill.
 - Los formularios de solicitud de acceso se abren en modal mediante botones `New request` en los listados relacionados.
 - Las opciones de menu que no pertenecen a `AI AGENTS`, excepto `Authorizations`, no cambian la seccion activa; abren un popup/modal con el aviso literal "Funcionlidad no habilitada en la Maqueta. Usar funcionalidades dentro del apartado AI Agents".
