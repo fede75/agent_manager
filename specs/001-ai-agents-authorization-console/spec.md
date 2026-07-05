@@ -78,7 +78,7 @@ La UI debe replicar patrones ADA Console:
 
 - Sidebar azul oscuro.
 - Nueva seccion `AI AGENTS`.
-- Las opciones de menu fuera de `AI AGENTS` se muestran solo para conservar el look & feel ADA Console y, al pulsarlas, deben mostrar el mensaje "Funcionlidad no habilitada en la Maqueta. Usar funcionalidades dentro del apartado AI Agents".
+- Las opciones de menu fuera de `AI AGENTS` se muestran solo para conservar el look & feel ADA Console y, al pulsarlas, deben abrir un popup/modal con el mensaje "Funcionlidad no habilitada en la Maqueta. Usar funcionalidades dentro del apartado AI Agents".
 - Header superior con breadcrumb, acciones e identidad de proyecto.
 - Tablas densas enterprise.
 - La vista por defecto de aplicaciones y ChatApps Collectives es en cards modernas con opcion de cambiar a tabla.
@@ -91,7 +91,7 @@ La UI debe replicar patrones ADA Console:
 ## Acceptance Criteria
 
 - El usuario puede navegar por todas las secciones AI Agents.
-- Al pulsar cualquier opcion de menu fuera de AI Agents, el sistema no navega a una pantalla funcional y muestra "Funcionlidad no habilitada en la Maqueta. Usar funcionalidades dentro del apartado AI Agents".
+- Al pulsar cualquier opcion de menu fuera de AI Agents, el sistema no navega a una pantalla funcional y abre un popup/modal con "Funcionlidad no habilitada en la Maqueta. Usar funcionalidades dentro del apartado AI Agents".
 - El usuario puede crear entidades y verlas persistidas durante la sesion.
 - El usuario puede crear solicitudes y aprobar/rechazar.
 - Las aprobaciones crean autorizaciones activas.

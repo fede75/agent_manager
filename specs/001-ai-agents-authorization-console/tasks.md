@@ -16,5 +16,5 @@
 - [x] Implementar revocacion desde consumidores y desde MCP.
 - [x] Implementar vista cards por defecto en Applications y ChatApps Collectives.
 - [x] Eliminar Audit, Policies y Simulator de la funcionalidad visible.
-- [x] Mostrar aviso al pulsar opciones de menu fuera de AI Agents.
+- [x] Mostrar popup/modal al pulsar opciones de menu fuera de AI Agents.
 - [x] Documentar ejecucion local y Vercel.

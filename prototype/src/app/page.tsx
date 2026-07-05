@@ -39,6 +39,7 @@ export default function Home() {
   const [modal, setModal] = useState<string | null>(null);
   const [detail, setDetail] = useState<{ kind: string; id: string } | null>(null);
   const [toast, setToast] = useState("");
+  const [disabledMenuModal, setDisabledMenuModal] = useState(false);
   const [selectedUuaa, setSelectedUuaa] = useState("KDIT");
   const [profile, setProfile] = useState("Project Owner");
   const [directoryViews, setDirectoryViews] = useState<Record<string, "table" | "cards">>({ Applications: "cards", "ChatApps Collectives": "cards" });
@@ -148,35 +149,35 @@ export default function Home() {
       <aside className="side">
         <div className="brand"><span>ADA</span><span className="brand-mark">Λ</span><span>console</span></div>
         <div className="side-scroll">
-        <div className="nav"><NavButton label="Dashboard" section={section} setSection={setSection} setToast={setToast} disabled /></div>
+        <div className="nav"><NavButton label="Dashboard" section={section} setSection={setSection} setToast={setToast} setDisabledMenuModal={setDisabledMenuModal} disabled /></div>
         <div className="group-title">DATA LAKE</div>
         <div className="nav">
-          <NavButton label="Catalog" section={section} setSection={setSection} setToast={setToast} badge="NEW" disabled />
-          <NavButton label="Data Lake Subscriptions" section={section} setSection={setSection} setToast={setToast} disabled />
+          <NavButton label="Catalog" section={section} setSection={setSection} setToast={setToast} setDisabledMenuModal={setDisabledMenuModal} badge="NEW" disabled />
+          <NavButton label="Data Lake Subscriptions" section={section} setSection={setSection} setToast={setToast} setDisabledMenuModal={setDisabledMenuModal} disabled />
         </div>
         <div className="group-title">SANDBOX</div>
         <div className="nav">
-          <NavButton label="Engines" section={section} setSection={setSection} setToast={setToast} disabled />
-          <NavButton label="Models" section={section} setSection={setSection} setToast={setToast} disabled />
-          <NavButton label="SAS Sync" section={section} setSection={setSection} setToast={setToast} disabled />
-          <NavButton label="Data" section={section} setSection={setSection} setToast={setToast} disabled />
+          <NavButton label="Engines" section={section} setSection={setSection} setToast={setToast} setDisabledMenuModal={setDisabledMenuModal} disabled />
+          <NavButton label="Models" section={section} setSection={setSection} setToast={setToast} setDisabledMenuModal={setDisabledMenuModal} disabled />
+          <NavButton label="SAS Sync" section={section} setSection={setSection} setToast={setToast} setDisabledMenuModal={setDisabledMenuModal} disabled />
+          <NavButton label="Data" section={section} setSection={setSection} setToast={setToast} setDisabledMenuModal={setDisabledMenuModal} disabled />
         </div>
         <div className="group-title">DATAPROC</div>
         <div className="nav">
-          <NavButton label="Jobs" section={section} setSection={setSection} setToast={setToast} disabled />
-          <NavButton label="Configurations" section={section} setSection={setSection} setToast={setToast} disabled />
-          <NavButton label="Queue" section={section} setSection={setSection} setToast={setToast} disabled />
+          <NavButton label="Jobs" section={section} setSection={setSection} setToast={setToast} setDisabledMenuModal={setDisabledMenuModal} disabled />
+          <NavButton label="Configurations" section={section} setSection={setSection} setToast={setToast} setDisabledMenuModal={setDisabledMenuModal} disabled />
+          <NavButton label="Queue" section={section} setSection={setSection} setToast={setToast} setDisabledMenuModal={setDisabledMenuModal} disabled />
         </div>
         <div className="group-title">PLATFORM</div>
         <div className="nav">
-          <NavButton label="Projects" section={section} setSection={setSection} setToast={setToast} disabled />
-          <NavButton label="Inferences" section={section} setSection={setSection} setToast={setToast} disabled />
-          <NavButton label="Authorizations" section={section} setSection={setSection} setToast={setToast} disabled />
+          <NavButton label="Projects" section={section} setSection={setSection} setToast={setToast} setDisabledMenuModal={setDisabledMenuModal} disabled />
+          <NavButton label="Inferences" section={section} setSection={setSection} setToast={setToast} setDisabledMenuModal={setDisabledMenuModal} disabled />
+          <NavButton label="Authorizations" section={section} setSection={setSection} setToast={setToast} setDisabledMenuModal={setDisabledMenuModal} disabled />
         </div>
         <div className="group-title">AI AGENTS</div>
-        <div className="nav">{aiSections.map((s) => <NavButton key={s} label={s} section={section} setSection={setSection} setToast={setToast} />)}</div>
+        <div className="nav">{aiSections.map((s) => <NavButton key={s} label={s} section={section} setSection={setSection} setToast={setToast} setDisabledMenuModal={setDisabledMenuModal} />)}</div>
         <div className="group-title">TOOLS</div>
-        <div className="nav"><NavButton label="Reports" section={section} setSection={setSection} setToast={setToast} disabled /></div>
+        <div className="nav"><NavButton label="Reports" section={section} setSection={setSection} setToast={setToast} setDisabledMenuModal={setDisabledMenuModal} disabled /></div>
         </div>
         <div className="side-footer"><span>BBVA</span><span className="footer-icon">↘</span><span className="footer-icon">▣</span><span className="footer-icon">≪</span></div>
       </aside>
@@ -195,6 +196,7 @@ export default function Home() {
         </div>
       </main>
       {detail && <DetailModal detail={detail} close={() => setDetail(null)} state={state} entityName={entityName} createRequest={createRequest} deleteAsset={deleteAsset} cancelRequest={cancelRequest} revoke={revoke} addToolToMcp={addToolToMcp} selectedUuaa={selectedUuaa} uuaas={uuaas} profile={profile} />}
+      {disabledMenuModal && <DisabledMenuModal close={() => setDisabledMenuModal(false)} />}
       {modal && <EntityModal modal={modal} close={() => setModal(null)} state={state} addEntity={addEntity} createRequest={createRequest} selectedUuaa={selectedUuaa} uuaas={uuaas} />}
     </div>
   );
@@ -252,16 +254,32 @@ function normalizeState(saved: AppState): AppState {
   };
 }
 
-function NavButton({ label, section, setSection, setToast, badge, disabled }: any) {
+function NavButton({ label, section, setSection, setToast, setDisabledMenuModal, badge, disabled }: any) {
   const onClick = () => {
     if (disabled) {
-      setToast(disabledMenuMessage);
+      setToast("");
+      setDisabledMenuModal(true);
       return;
     }
     setToast("");
+    setDisabledMenuModal(false);
     setSection(label);
   };
   return <button className={section === label ? "active" : ""} onClick={onClick}><span>{icons[label]}</span><span className="nav-label">{label.replace("Data Lake ", "")}</span>{badge && <span className="nav-badge">{badge}</span>}</button>;
+}
+
+function DisabledMenuModal({ close }: any) {
+  return (
+    <div className="modal-backdrop">
+      <div className="modal notice-modal">
+        <div className="modal-head"><h2>Funcionalidad no disponible</h2><button className="btn secondary" onClick={close}>Close</button></div>
+        <div className="modal-body">
+          <p className="notice-text">{disabledMenuMessage}</p>
+        </div>
+        <div className="modal-foot"><button className="btn" onClick={close}>Go to AI Agents</button></div>
+      </div>
+    </div>
+  );
 }
 
 function Dashboard({ state, setSection }: any) {

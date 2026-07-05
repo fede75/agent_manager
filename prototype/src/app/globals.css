@@ -100,9 +100,11 @@ tr:hover td { background: #fbfdff; }
 .modal-backdrop { position: fixed; inset: 0; background: rgba(18, 28, 42, .42); display: grid; place-items: center; padding: 24px; z-index: 10; }
 .modal { width: min(880px, 94vw); max-height: 90vh; overflow: auto; background: white; border-radius: 8px; box-shadow: 0 22px 60px rgba(0,0,0,.22); }
 .modal.wide { width: min(1180px, 96vw); }
+.modal.notice-modal { width: min(520px, 92vw); }
 .modal-head { padding: 16px 18px; border-bottom: 1px solid #dfe4ea; display: flex; justify-content: space-between; align-items: center; }
 .modal-body { padding: 18px; }
 .modal-foot { padding: 14px 18px; border-top: 1px solid #dfe4ea; display: flex; justify-content: flex-end; gap: 10px; }
+.notice-text { margin: 0; color: #24364f; font-size: 15px; line-height: 1.5; }
 .result { padding: 14px; background: #f8fafc; border: 1px solid #d9e1ea; line-height: 1.55; }
 .relation-panel { margin-top: 16px; }
 .empty { padding: 18px; color: #6b7787; background: #f8fafc; }

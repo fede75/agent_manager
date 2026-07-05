@@ -34,7 +34,7 @@
 - Applications y ChatApps Collectives abren por defecto en vista cards.
 - Ambas vistas mantienen un toggle para alternar cards/tabla.
 - El detalle de MCP incluye gestion de tools y listas de consumidores autorizados con revocacion.
-- Las opciones de menu que no pertenecen a `AI AGENTS` no cambian la seccion activa; muestran el aviso literal "Funcionlidad no habilitada en la Maqueta. Usar funcionalidades dentro del apartado AI Agents".
+- Las opciones de menu que no pertenecen a `AI AGENTS` no cambian la seccion activa; abren un popup/modal con el aviso literal "Funcionlidad no habilitada en la Maqueta. Usar funcionalidades dentro del apartado AI Agents".
 
 ## AWS AgentCore Mapping
 
