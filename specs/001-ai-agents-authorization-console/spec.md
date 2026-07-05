@@ -24,6 +24,7 @@ ADA actua como la capa corporativa de gobierno y autorizacion. AWS AgentCore se 
    - Solicita: Application Owner.
    - Aprueba: Agent Owner.
    - Autoriza que una aplicacion invoque un agente.
+   - Una aplicacion no solicita acceso directo a MCPs; cualquier acceso a MCPs queda gobernado desde el agente.
 
 2. Agent &rarr; MCP
    - Solicita: Agent Owner.
@@ -34,6 +35,7 @@ ADA actua como la capa corporativa de gobierno y autorizacion. AWS AgentCore se 
    - Solicita: Collective Owner.
    - Aprueba: MCP Owner.
    - Autoriza que un colectivo use MCPs desde ChatGPT Enterprise, Gemini Enterprise u otro asistente conversacional.
+   - Un colectivo no solicita acceso a agentes; su relacion gobernada es directa con MCPs.
 
 ## Functional Requirements
 
@@ -47,8 +49,12 @@ ADA actua como la capa corporativa de gobierno y autorizacion. AWS AgentCore se 
 - Solicitudes ChatApps Collective &rarr; MCP.
 - Aprobacion, rechazo y aprobacion parcial.
 - Autorizaciones activas visibles desde el detalle de cada asset.
+- Las autorizaciones MCP deben mostrar si el acceso es completo, solo lectura, escritura o especifico por tools.
+- Las autorizaciones MCP especificas por tools deben listar las tools autorizadas.
 - Cancelacion de peticiones pendientes desde el detalle de aplicaciones, agentes y colectivos.
+- Revocacion de autorizaciones activas desde el detalle del asset consumidor y tambien desde el detalle del MCP para agentes o colectivos autorizados.
 - Borrado de assets solo cuando no tienen autorizaciones activas ni solicitudes pendientes.
+- El detalle de MCP permite anadir nuevas tools clasificadas como read, write o critical_action.
 - Metadatos AgentCore en agentes: registry provider, registry agent id, version, runtime ARN, deployment stage, identity mode y observability.
 - Metadatos AgentCore Gateway en MCPs/tools: gateway id, MCP server id, protocol, auth mode, identity mode, gateway route y tool schema.
 - Alertas de gobierno: MCPs sin tools, tools pendientes de clasificacion, accesos criticos, solicitudes pendientes y expiraciones.
@@ -74,6 +80,7 @@ La UI debe replicar patrones ADA Console:
 - Nueva seccion `AI AGENTS`.
 - Header superior con breadcrumb, acciones e identidad de proyecto.
 - Tablas densas enterprise.
+- La vista por defecto de aplicaciones y ChatApps Collectives es en cards modernas con opcion de cambiar a tabla.
 - Botones azules.
 - Badges de estado, riesgo, entorno y tipo.
 - Hints contextuales en cada pantalla.
@@ -90,4 +97,6 @@ La UI debe replicar patrones ADA Console:
 - La lista Authorization Requests queda filtrada por la UUAA seleccionada.
 - Los roles Project Owner, Operations, AI Engineer y Application Manager condicionan las acciones disponibles.
 - El detalle de agentes y MCPs muestra el mapping ADA -> AWS AgentCore.
+- El detalle de colectivos solo permite gestionar autorizaciones ChatApps Collective -> MCP.
+- El detalle de MCP permite ver y revocar agentes y colectivos autorizados, incluyendo scope de acceso y tools autorizadas.
 - La app es desplegable en Vercel desde GitHub.
