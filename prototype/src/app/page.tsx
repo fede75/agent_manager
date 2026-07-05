@@ -40,7 +40,7 @@ export default function Home() {
   const [toast, setToast] = useState("");
   const [selectedUuaa, setSelectedUuaa] = useState("KDIT");
   const [profile, setProfile] = useState("Project Owner");
-  const [directoryViews, setDirectoryViews] = useState<Record<string, "table" | "cards">>({ Applications: "table", "ChatApps Collectives": "table" });
+  const [directoryViews, setDirectoryViews] = useState<Record<string, "table" | "cards">>({ Applications: "cards", "ChatApps Collectives": "cards" });
 
   useEffect(() => {
     const saved = localStorage.getItem(storageKey);
