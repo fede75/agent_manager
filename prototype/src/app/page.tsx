@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AppState, AccessLevel, RequestType, seedState, newId, nowStamp } from "@/lib/data";
+import { AppState, AccessLevel, RequestType, seedState, newId, nowStamp, skillMarkdown } from "@/lib/data";
 
 const storageKey = "ada-ai-agents-console-state";
 const disabledMenuMessage = "Funcionlidad no habilitada en la Maqueta. Usar funcionalidades dentro del apartado AI Agents";
@@ -281,7 +281,10 @@ function normalizeState(saved: AppState): AppState {
     agents: saved.agents.map((item: any) => ({ ...defaultAgentCore(item.id), ...item, uuaa: item.uuaa || inferUuaa(item.id) })),
     mcps: saved.mcps.map((item: any) => ({ ...defaultGateway(item.id), ...item, tools: (item.tools || []).map(normalizeTool), uuaa: item.uuaa || inferUuaa(item.id) })),
     skills: saved.skills || seedState.skills,
-    skillVersions: saved.skillVersions || seedState.skillVersions,
+    skillVersions: (saved.skillVersions || seedState.skillVersions).map((version: any) => ({
+      ...version,
+      specification_markdown: version.specification_markdown || skillMarkdown(version.skill_id, version.version),
+    })),
     agentSkillAssociations: saved.agentSkillAssociations || seedState.agentSkillAssociations,
   };
 }

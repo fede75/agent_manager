@@ -100,46 +100,268 @@ const skill = (id: string, name: string, owner_uuaa: string, domain: string, ris
   updated_at: today,
 });
 
-const skillMarkdown = (skill_id: string, version: string) => {
-  const shortName = skill_id.split(".").pop()?.replaceAll("-", " ") || skill_id;
+export const skillMarkdown = (skill_id: string, version: string) => {
+  const examples: Record<string, string> = {
+    "bbva.skill.gdpr-redaction": `# bbva.skill.gdpr-redaction v${version}
+
+## Purpose
+Redact and minimize personal data before an ADA agent writes summaries, CRM notes or customer-service responses.
+
+## When To Use
+- Customer, employee or third-party personal data appears in context.
+- The output may be copied to CRM, audit notes or customer support tools.
+
+## Agent Instructions
+1. Detect names, national IDs, phone numbers, emails, addresses, account numbers and card numbers.
+2. Replace direct identifiers with labels such as [CUSTOMER], [ACCOUNT] or [PHONE].
+3. Preserve business meaning while minimizing personal data.
+4. Escalate when the user asks to reveal restricted personal data.
+
+## Input Contract
+- customer_context
+- target_channel
+- requester_role: role invoking the agent.
+- allowed_fields
+
+## Output Contract
+- redacted_text
+- redaction_summary
+- residual_risk
+- escalation_required
+
+## Acceptance Criteria
+- Direct identifiers are removed unless explicitly allowed.
+- Account and card numbers are always masked.
+- The output remains useful for the business task.
+
+## Example
+Input: "Maria Garcia, DNI 12345678Z, called from +34 600111222 about account ES12..."
+
+Output:
+- redacted_text: "[CUSTOMER] called from [PHONE] about [ACCOUNT]."
+- redaction_summary: "name, national id, phone, account"
+- residual_risk: "low"
+- escalation_required: false
+`,
+    "bbva.skill.complaint-classification": `# bbva.skill.complaint-classification v${version}
+
+## Purpose
+Classify customer complaints into BBVA operational categories and produce a concise rationale for CRM routing.
+
+## Agent Instructions
+1. Identify the primary complaint driver.
+2. Choose exactly one primary category and, when useful, one secondary category.
+3. Extract evidence phrases from supplied text only.
+4. Estimate urgency from customer impact, financial loss and regulatory sensitivity.
+5. Do not decide compensation or final complaint resolution.
+
+## Input Contract
+- complaint_text
+- channel
+- product_context
+
+## Output Contract
+- primary_category
+- secondary_category
+- urgency
+- rationale
+- recommended_owner_queue
+
+## Acceptance Criteria
+- Classification is evidence-based.
+- High urgency is used for fraud, vulnerable customer, financial loss or regulatory risk.
+
+## Example
+Input: "The app charged me twice for the same transfer and nobody has answered my claim."
+
+Output:
+- primary_category: "payments"
+- secondary_category: "digital_channels"
+- urgency: "high"
+- rationale: "Customer reports duplicate transfer charge and unresolved claim."
+- recommended_owner_queue: "Payments Operations"
+`,
+    "bbva.skill.fraud-investigation-runbook": `# bbva.skill.fraud-investigation-runbook v${version}
+
+## Purpose
+Guide fraud investigation agents through controlled triage without autonomous blocking or refund decisions.
+
+## Agent Instructions
+1. Summarize alert, transaction pattern and customer impact.
+2. Check available transaction, device, merchant, geo and previous-case evidence.
+3. Rank indicators as confirmed, suspicious or missing.
+4. Recommend next analyst action, not a final fraud decision.
+5. Require human review before account, card or payment restrictions.
+
+## Input Contract
+- alert_payload
+- transaction_context
+- customer_contact_history
+- available_evidence_refs
+
+## Output Contract
+- case_summary
+- fraud_indicators
+- missing_evidence
+- recommended_next_action
+- human_review_required
+
+## Example
+Output:
+- case_summary: "Three card-not-present purchases from new device within 8 minutes."
+- fraud_indicators: ["new_device", "velocity", "merchant_risk"]
+- missing_evidence: ["customer confirmation"]
+- recommended_next_action: "Contact customer and hold analyst review."
+- human_review_required: true
+`,
+    "bbva.skill.credit-risk-policy-review": `# bbva.skill.credit-risk-policy-review v${version}
+
+## Purpose
+Help credit risk agents review policy evidence and produce non-binding analysis for human decision makers.
+
+## Agent Instructions
+1. Compare application facts against supplied policy excerpts.
+2. Separate facts, assumptions and missing evidence.
+3. Highlight policy breaches and compensating factors.
+4. Never approve, reject or price credit autonomously.
+
+## Input Contract
+- application_summary
+- risk_metrics
+- policy_evidence
+- analyst_question
+
+## Output Contract
+- policy_findings
+- risk_observations
+- missing_information
+- recommended_human_review_focus
+
+## Example
+Output:
+- policy_findings: "Debt-to-income exceeds threshold in supplied policy section 4.2."
+- risk_observations: "Stable payroll income partially mitigates volatility."
+- missing_information: "Updated bureau score not provided."
+- recommended_human_review_focus: "Validate affordability exception criteria."
+`,
+    "bbva.skill.mcp-security-review": `# bbva.skill.mcp-security-review v${version}
+
+## Purpose
+Review requested MCP/tool access and identify security, identity and data-governance concerns.
+
+## Agent Instructions
+1. Inspect requested MCP, tool types and access level.
+2. Flag write or critical_action tools.
+3. Verify identity propagation and audit requirements.
+4. Recommend least-privilege alternatives when full access is requested.
+
+## Input Contract
+- agent_metadata
+- mcp_metadata
+- requested_tools
+- requested_access
+- business_justification
+
+## Output Contract
+- risk_summary
+- least_privilege_recommendation
+- required_controls
+- approval_recommendation
+
+## Example
+Output:
+- risk_summary: "Full access includes write tool updateCustomerContactData."
+- least_privilege_recommendation: "Approve read tools only plus createCRMCase."
+- required_controls: ["end_user_identity", "audit_log", "case_reference"]
+- approval_recommendation: "partial"
+`,
+    "bbva.skill.data-product-onboarding": `# bbva.skill.data-product-onboarding v${version}
+
+## Purpose
+Guide agents through onboarding a data product with ownership, classification and governance evidence.
+
+## Agent Instructions
+1. Identify producer, consumer, data domain and UUAA.
+2. Confirm data classification and retention constraints.
+3. Check that governance reference and quality owner exist.
+4. Generate a missing-evidence checklist.
+
+## Input Contract
+- data_product_description
+- owner_metadata
+- data_classification
+- consumer_use_case
+
+## Output Contract
+- onboarding_summary
+- missing_controls
+- data_governance_questions
+- next_steps
+
+## Example
+Output:
+- onboarding_summary: "Customer complaints mart for service analytics."
+- missing_controls: ["retention_policy", "quality_slo"]
+- data_governance_questions: ["Is personal data tokenized?"]
+- next_steps: ["Create OneTrust reference", "Assign data steward"]
+`,
+    "bbva.skill.customer-response-drafting": `# bbva.skill.customer-response-drafting v${version}
+
+## Purpose
+Draft clear, empathetic and policy-safe customer responses for service agents.
+
+## Agent Instructions
+1. Use plain language and a calm professional tone.
+2. Do not promise compensation, approval or timelines not present in evidence.
+3. Include next steps and ownership when available.
+4. Avoid exposing internal-only notes or restricted data.
+
+## Input Contract
+- customer_issue
+- known_facts
+- allowed_message_points
+- channel
+
+## Output Contract
+- draft_response
+- tone_notes
+- omitted_sensitive_information
+- escalation_required
+
+## Example
+Output:
+- draft_response: "We are reviewing your case and will update you through the secure channel once the pending checks are complete."
+- tone_notes: "empathetic, concise"
+- omitted_sensitive_information: ["internal risk marker"]
+- escalation_required: false
+`,
+  };
+  if (examples[skill_id]) return examples[skill_id];
   return `# ${skill_id} v${version}
 
 ## Purpose
-This Skill defines the mandatory operating instructions an ADA agent must follow when using the ${shortName} capability in a BBVA financial workflow.
+This Skill defines the mandatory operating instructions an ADA agent must follow when using this capability in a BBVA financial workflow.
 
 ## When To Use
 - Use only when the agent has an approved Agent -> Skill association for this exact version.
-- Use when the user request matches the business domain and the input context is sufficient.
-- Do not use for autonomous customer-impacting decisions.
+- Use when the user request matches the business domain and input context is sufficient.
 
 ## Agent Instructions
 1. Read the full business context before producing an answer.
-2. Apply BBVA data classification and privacy rules before exposing any customer, account or case information.
-3. Produce grounded outputs with a short rationale and clear uncertainty markers.
-4. Escalate to a human owner when confidence is low, policy evidence is missing or the request implies regulated decisioning.
+2. Apply BBVA data classification and privacy rules.
+3. Produce grounded outputs with a short rationale.
+4. Escalate when confidence is low or policy evidence is missing.
 
 ## Input Contract
-- business_context: structured case, customer, policy or operational context.
-- requester_role: role invoking the agent.
-- jurisdiction: country or global scope.
-- evidence_refs: optional references used by the agent.
+- business_context
+- requester_role
+- evidence_refs
 
 ## Output Contract
-- decision_or_recommendation: concise result.
-- rationale: evidence-based explanation.
-- controls_applied: list of validations or redactions performed.
-- escalation_required: true/false with reason.
-
-## Acceptance Criteria
-- The agent never invents policy, product, customer or account facts.
-- The answer preserves traceability to supplied evidence.
-- Restricted or confidential fields are masked unless explicitly allowed by the caller authorization.
-- The output is suitable for audit review.
-
-## Safety Constraints
-- No payment initiation, credit approval, customer blocking or legal conclusion can be executed by the Skill.
-- If the request requires write or critical action tools, the agent must confirm that an approved MCP subscription exists.
-- If personal data is present, minimize it in the final response.
+- decision_or_recommendation
+- rationale
+- controls_applied
+- escalation_required
 
 ## Example
 Input: Customer service case with free-text complaint and CRM notes.
