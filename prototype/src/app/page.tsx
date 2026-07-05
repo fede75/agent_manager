@@ -124,7 +124,7 @@ export default function Home() {
       if (decision === "Rejected") return { ...s, requests: updatedRequests };
       if (req.type === "agent_skill") {
         const version = decision === "Partial" ? req.approvedVersion || req.requestedVersion : req.requestedVersion;
-        return { ...s, requests: updatedRequests, agentSkillAssociations: [{ id: newId("ask"), association_id: newId("ask"), agent_id: req.sourceId, skill_id: req.targetId, skill_version: version || "1.0.0", usage_mode: decision === "Partial" ? "optional" : req.usageModeRequested || "optional", authorization_status: "active", upgrade_policy: "pinned", associated_by: req.approver, associated_at: nowStamp(), approval_request_id: req.id }, ...s.agentSkillAssociations] };
+        return { ...s, requests: updatedRequests, agentSkillAssociations: [{ id: newId("ask"), association_id: newId("ask"), agent_id: req.sourceId, skill_id: req.targetId, skill_version: version || "1.0.0", authorization_status: "active", upgrade_policy: "pinned", associated_by: req.approver, associated_at: nowStamp(), approval_request_id: req.id }, ...s.agentSkillAssociations] };
       }
       return { ...s, requests: updatedRequests, subscriptions: [{ ...req, id: newId("sub"), status: decision === "Partial" ? "Partial" : "Active", accessLevel: decision === "Partial" ? "read" : req.requestedAccess, toolIds: decision === "Partial" ? [] : req.requestedToolIds, updated: nowStamp(), conditions: decision === "Partial" ? "Read-only partial approval" : "Approved by owner" }, ...s.subscriptions] };
     });
@@ -144,11 +144,11 @@ export default function Home() {
     audit("Project Owner", "tool_added", `${mcpId}.${tool.name}`, "allow", "Tool added from MCP detail");
   };
 
-  const associateSkillToAgent = (agentId: string, skillId: string, version: string, usageMode: "mandatory" | "optional") => {
+  const associateSkillToAgent = (agentId: string, skillId: string, version: string) => {
     const skill = state.skills.find((item) => item.id === skillId);
     setState((s) => ({
       ...s,
-      agentSkillAssociations: [{ id: newId("ask"), association_id: newId("ask"), agent_id: agentId, skill_id: skillId, skill_version: version, usage_mode: usageMode, authorization_status: "active", upgrade_policy: skill?.risk_level === "Low" ? "auto_patch" : "pinned", associated_by: "Agent Owner", associated_at: nowStamp(), approval_request_id: "" }, ...s.agentSkillAssociations],
+      agentSkillAssociations: [{ id: newId("ask"), association_id: newId("ask"), agent_id: agentId, skill_id: skillId, skill_version: version, authorization_status: "active", upgrade_policy: skill?.risk_level === "Low" ? "auto_patch" : "pinned", associated_by: "Agent Owner", associated_at: nowStamp(), approval_request_id: "" }, ...s.agentSkillAssociations],
     }));
     audit("Agent Owner", "skill_associated", `${agentId} -> ${skillId}@${version}`, "allow", "Open Skill associated without approval request");
   };
@@ -502,7 +502,7 @@ function Field({ label, value, set, options }: any) { return <div className="fie
 
 function DetailModal({ detail, close, state, entityName, createRequest, deleteAsset, cancelRequest, revoke, addToolToMcp, associateSkillToAgent, selectedUuaa, uuaas, profile }: any) {
   const asset = detail.kind === "application" ? state.applications.find((a: any) => a.id === detail.id) : detail.kind === "collective" ? state.collectives.find((c: any) => c.id === detail.id) : detail.kind === "agent" ? state.agents.find((a: any) => a.id === detail.id) : detail.kind === "skill" ? state.skills.find((skill: any) => skill.id === detail.id) : state.mcps.find((m: any) => m.id === detail.id);
-  const [request, setRequest] = useState<any>({ uuaa: selectedUuaa, agentId: state.agents.find((a: any) => (a.uuaa || "KDIT") === selectedUuaa)?.id || state.agents[0]?.id, mcpId: state.mcps.find((m: any) => (m.uuaa || "KDIT") === selectedUuaa)?.id || state.mcps[0]?.id, skillId: state.skills.find((skill: any) => skill.owner_uuaa === selectedUuaa)?.id || state.skills[0]?.id, skillVersion: "", usageMode: "optional", access: "read", requestedToolIds: [], purpose: "Business controlled access", justification: "Requested from asset detail view", expiration: "31-12-2026" });
+  const [request, setRequest] = useState<any>({ uuaa: selectedUuaa, agentId: state.agents.find((a: any) => (a.uuaa || "KDIT") === selectedUuaa)?.id || state.agents[0]?.id, mcpId: state.mcps.find((m: any) => (m.uuaa || "KDIT") === selectedUuaa)?.id || state.mcps[0]?.id, skillId: state.skills.find((skill: any) => skill.owner_uuaa === selectedUuaa)?.id || state.skills[0]?.id, skillVersion: "", access: "read", requestedToolIds: [], purpose: "Business controlled access", justification: "Requested from asset detail view", expiration: "31-12-2026" });
   const [requestModal, setRequestModal] = useState<string | null>(null);
   const [toolDraft, setToolDraft] = useState<any>({ name: "", type: "read", resource: "", risk: "Medium" });
   if (!asset) return null;
@@ -601,7 +601,7 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
   const submitAgentSkillRequest = () => {
     const version = request.skillVersion || selectedSkillVersions[0]?.version || "1.0.0";
     if (selectedSkill?.usage_policy === "open") {
-      associateSkillToAgent(asset.id, selectedSkill.id, version, request.usageMode);
+      associateSkillToAgent(asset.id, selectedSkill.id, version);
     } else {
       createRequest({
         type: "agent_skill",
@@ -609,7 +609,6 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
         targetId: selectedSkill.id,
         skillId: selectedSkill.id,
         requestedVersion: version,
-        usageModeRequested: request.usageMode,
         approvalPolicyApplied: selectedSkill.usage_policy,
         riskLevel: selectedSkill.risk_level,
         requestedAccess: "full",
@@ -652,7 +651,6 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
       <div className="modal-body form two">
         <Field label="Skill" value={request.skillId} set={(v: string) => setRequest((r: any) => ({ ...r, skillId: v, skillVersion: state.skillVersions.find((version: any) => version.skill_id === v && version.status === "approved")?.version || "" }))} options={state.skills.map((skill: any) => ({ id: skill.id, name: `${skill.name} (${skill.owner_uuaa})` }))} />
         <Field label="Approved version" value={request.skillVersion || selectedSkillVersions[0]?.version || ""} set={(v: string) => setRequest((r: any) => ({ ...r, skillVersion: v }))} options={selectedSkillVersions.map((version: any) => ({ id: version.version, name: version.version }))} />
-        <div className="field"><label>Usage mode</label><select value={request.usageMode} onChange={(e) => setRequest((r: any) => ({ ...r, usageMode: e.target.value }))}><option value="mandatory">mandatory</option><option value="optional">optional</option></select></div>
         <div className="field"><label>Usage policy</label><input value={selectedSkill?.usage_policy || "-"} readOnly /></div>
         <div className="field" style={{ gridColumn: "1 / -1" }}><label>Business justification</label><textarea value={request.justification} onChange={(e) => setRequest((r: any) => ({ ...r, justification: e.target.value }))} /></div>
         <div className="modal-form-actions"><button className="btn secondary" type="button" onClick={() => setRequestModal(null)}>Cancel</button><button className="btn" type="button" onClick={submitAgentSkillRequest}>{selectedSkill?.usage_policy === "open" ? "Associate Skill" : "Request Skill Access"}</button></div>
@@ -702,8 +700,7 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
           {detail.kind === "agent" && <>
             <SectionTable title="Consumer applications" rows={agentApps.map((s: any) => ({ ...s, application: entityName(s.sourceId) }))} columns={["application","purpose","requester","status","expiration"]} cancelRequest={cancelRequest} />
             <SectionTable title="Authorized MCPs" rows={agentMcps.map((s: any) => subscriptionDetail({ ...s, mcp: entityName(s.targetId) }))} columns={["mcp","accessScope","toolsScope","conditions","approver","status","expiration"]} cancelRequest={cancelRequest} headerAction={canRequestMcp ? <button className="btn panel-action" type="button" onClick={() => openRequestModal("agent_mcp")}>New request</button> : null} />
-            <SectionTable title="Mandatory Skills" rows={agentSkillAssociations.filter((association: any) => association.usage_mode === "mandatory").map((association: any) => ({ ...association, skill: entityName(association.skill_id), version: association.skill_version, status: association.authorization_status, risk: state.skills.find((skill: any) => skill.id === association.skill_id)?.risk_level, owner: state.skills.find((skill: any) => skill.id === association.skill_id)?.skill_owner, upgradePolicy: association.upgrade_policy }))} columns={["skill","version","status","risk","owner","upgradePolicy"]} headerAction={canManageSkills ? <button className="btn panel-action" type="button" onClick={() => openRequestModal("agent_skill")}>New request</button> : null} />
-            <SectionTable title="Optional Skills" rows={agentSkillAssociations.filter((association: any) => association.usage_mode === "optional").map((association: any) => ({ ...association, skill: entityName(association.skill_id), version: association.skill_version, status: association.authorization_status, risk: state.skills.find((skill: any) => skill.id === association.skill_id)?.risk_level, owner: state.skills.find((skill: any) => skill.id === association.skill_id)?.skill_owner, upgradePolicy: association.upgrade_policy }))} columns={["skill","version","status","risk","owner","upgradePolicy"]} />
+            <SectionTable title="Skills used by this agent" rows={agentSkillAssociations.map((association: any) => ({ ...association, skill: entityName(association.skill_id), version: association.skill_version, status: association.authorization_status, risk: state.skills.find((skill: any) => skill.id === association.skill_id)?.risk_level, owner: state.skills.find((skill: any) => skill.id === association.skill_id)?.skill_owner, upgradePolicy: association.upgrade_policy }))} columns={["skill","version","status","risk","owner","upgradePolicy"]} headerAction={canManageSkills ? <button className="btn panel-action" type="button" onClick={() => openRequestModal("agent_skill")}>New request</button> : null} />
             {!canManageSkills && <div className="hint">Solo AI Engineer o Project Owner pueden asociar Skills a agentes.</div>}
             {!canRequestMcp && <div className="hint">Solo AI Engineer o Project Owner pueden solicitar autorizacion para usar MCPs desde un agente.</div>}
           </>}
@@ -737,8 +734,8 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
               <div className="panel"><div className="panel-head"><b>Governance</b></div><Rows rows={[{ id: "gov", governance_reference: asset.governance_reference, oneTrust: `OT-${asset.owner_uuaa}-SKILL`, risk_level: asset.risk_level, data_classification: asset.data_classification, usage_policy: asset.usage_policy, allowed_uuaas: asset.allowed_uuaas.join(", "), allowed_agent_types: asset.allowed_agent_types.join(", ") }]} columns={["governance_reference","oneTrust","risk_level","data_classification","usage_policy","allowed_uuaas","allowed_agent_types"]} /></div>
             </div>
             <SectionTable title="Versions" rows={skillVersions.map((version: any) => ({ ...version, usedByAgents: state.agentSkillAssociations.filter((association: any) => association.skill_id === asset.id && association.skill_version === version.version).length }))} columns={["version","status","change_type","breaking_change","artifact_format","registry_record_revision_id","compatible_runtimes","usedByAgents","release_notes"]} />
-            <SectionTable title="Agents Using This Skill" rows={skillAssociations.map((association: any) => ({ ...association, agent: entityName(association.agent_id), agentOwner: state.agents.find((agent: any) => agent.id === association.agent_id)?.owner, uuaa: state.agents.find((agent: any) => agent.id === association.agent_id)?.uuaa, versionUsed: association.skill_version, usageMode: association.usage_mode, associationStatus: association.authorization_status, upgradePolicy: association.upgrade_policy }))} columns={["agent","agentOwner","uuaa","versionUsed","usageMode","upgradePolicy","associationStatus"]} />
-            <SectionTable title="Authorization Requests" rows={skillRequests.map((request: any) => ({ ...request, agent: entityName(request.sourceId), requestedVersion: request.requestedVersion, usageMode: request.usageModeRequested, risk: request.riskLevel }))} columns={["agent","requestedVersion","usageMode","requester","approver","risk","status","purpose"]} cancelRequest={cancelRequest} />
+            <SectionTable title="Agents Using This Skill" rows={skillAssociations.map((association: any) => ({ ...association, agent: entityName(association.agent_id), agentOwner: state.agents.find((agent: any) => agent.id === association.agent_id)?.owner, uuaa: state.agents.find((agent: any) => agent.id === association.agent_id)?.uuaa, versionUsed: association.skill_version, associationStatus: association.authorization_status, upgradePolicy: association.upgrade_policy }))} columns={["agent","agentOwner","uuaa","versionUsed","upgradePolicy","associationStatus"]} />
+            <SectionTable title="Authorization Requests" rows={skillRequests.map((request: any) => ({ ...request, agent: entityName(request.sourceId), requestedVersion: request.requestedVersion, risk: request.riskLevel }))} columns={["agent","requestedVersion","requester","approver","risk","status","purpose"]} cancelRequest={cancelRequest} />
             <div className="panel relation-panel"><div className="panel-head"><b>AWS Mapping</b></div><Rows rows={[{ id: "aws", registryProvider: asset.registry_provider, registryId: asset.registry_id, recordId: asset.registry_record_id, recordArn: asset.registry_record_arn, descriptorType: asset.descriptor_type, recordStatus: asset.registry_record_status, endpointType: asset.registry_endpoint_type, lastSyncStatus: asset.last_sync_status, lastSyncDate: asset.last_sync_date }]} columns={["registryProvider","registryId","recordId","recordArn","descriptorType","recordStatus","endpointType","lastSyncStatus","lastSyncDate"]} /></div>
           </>}
         </div>

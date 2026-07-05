@@ -27,7 +27,7 @@
 - [x] Implementar inventario de Skills filtrado por UUAA.
 - [x] Implementar vista cards/lista en Skills con cards por defecto.
 - [x] Implementar detalle de Skill con versiones, agentes, requests, governance y AWS Mapping.
-- [x] Implementar Skills mandatory/optional en detalle de Agent.
+- [x] Simplificar Skills de Agent a una unica lista de Skills utilizados, sin categorias adicionales de uso.
 - [x] Implementar solicitudes Agent -> Skill en Authorizations.
 - [x] Mover formularios de solicitud de acceso a modales abiertos con New request.
 - [x] Documentar ejecucion local y Vercel.

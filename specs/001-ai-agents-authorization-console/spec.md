@@ -66,11 +66,11 @@ Regla clave: un agente siempre se asocia a una version concreta de un Skill. Nun
    - Solicita: Agent Owner.
    - Aprueba: Skill Owner solo si la politica del Skill lo requiere.
    - Autoriza que un agente use una version concreta de un Skill.
-   - La asociacion puede ser mandatory u optional.
+   - La asociacion indica que el agente utiliza ese Skill; no se modelan categorias adicionales de uso en esta maqueta.
    - `usage_policy = open`: el Agent Owner puede asociar directamente una version approved.
    - `usage_policy = restricted`: la consola valida allowed_uuaas, allowed_agent_types, dominio, riesgo y runtime antes de asociar o solicitar.
    - `usage_policy = approval_required`: se crea Authorization Request de tipo Agent -> Skill y se aprueba desde `PLATFORM > Authorizations`.
-   - La aprobacion parcial puede aprobar una version distinta, cambiar mandatory a optional o limitar el uso a un runtime concreto.
+   - La aprobacion parcial puede aprobar una version distinta o limitar el uso a un runtime concreto.
 
 ## Functional Requirements
 
@@ -97,7 +97,7 @@ Regla clave: un agente siempre se asocia a una version concreta de un Skill. Nun
 - Borrado de assets solo cuando no tienen autorizaciones activas ni solicitudes pendientes.
 - El detalle de MCP permite anadir nuevas tools clasificadas como read, write o critical_action.
 - Asociacion de Skills a agentes siempre por version concreta.
-- Soporte de Skills mandatory y optional.
+- Los Skills asociados a un agente se tratan siempre como Skills utilizados por el agente; se dejan fuera categorias adicionales como uso opcional o equivalente.
 - Visualizacion de agentes que usan cada Skill y version.
 - Aviso de nuevas versiones disponibles en asociaciones Agent -> Skill.
 - Bloqueo de asociacion a versiones retired.
@@ -141,7 +141,7 @@ La UI debe replicar patrones ADA Console:
 - Skills se muestra por defecto en vista cards modernas, con opcion de cambiar a lista/tabla enterprise densa.
 - La lista/tabla de Skills incluye columnas Name, Skill ID, Owner UUAA, Domain, Risk, Data Classification, Usage Policy, Latest Approved Version, Status, Agents Using, Pending Requests, Registry Provider y Registry Status.
 - El detalle de Skill muestra Overview, Versions, Agents Using This Skill, Authorization Requests, Governance y AWS Mapping como secciones visibles.
-- El detalle de Agent muestra Skills mandatory y optional, con acciones para asociar, solicitar acceso, cambiar version, retirar asociacion y ver detalle del Skill.
+- El detalle de Agent muestra una unica lista de Skills utilizados por el agente, con accion `New request` para asociar o solicitar acceso por version concreta.
 - Las solicitudes de acceso no se muestran como formularios embebidos en las pantallas de detalle; cada listado relacionado ofrece una accion `New request` que abre una ventana/modal de solicitud.
 - Botones azules.
 - Badges de estado, riesgo, entorno y tipo.
