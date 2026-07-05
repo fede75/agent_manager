@@ -4,21 +4,46 @@ import { useEffect, useState } from "react";
 import { AppState, AccessLevel, RequestType, seedState, newId, nowStamp } from "@/lib/data";
 
 const storageKey = "ada-ai-agents-console-state";
-const sections = ["Dashboard", "Applications", "User Collectives", "Agents", "MCPs", "Subscriptions", "Requests", "Simulator", "Audit", "Policies"];
-const icons: Record<string, string> = { Dashboard: "◉", Applications: "▣", "User Collectives": "◎", Agents: "✣", MCPs: "▦", Subscriptions: "↔", Requests: "☑", Simulator: "▷", Audit: "≡", Policies: "⚙" };
+const aiSections = ["Applications", "ChatApps Collectives", "Agents", "MCPs", "Authorization Requests"];
+const uuaas = ["KDIT", "PAYM", "FRAD", "RISK", "DATA", "CARD", "LOAN", "WLTH"];
+const profiles = ["Project Owner", "Operations", "AI Engineer", "Application Manager"];
+const placeholderSections = ["Catalog", "Data Lake Subscriptions", "Engines", "Models", "SAS Sync", "Data", "Jobs", "Configurations", "Queue", "Projects", "Inferences", "Authorizations", "Reports"];
+const icons: Record<string, string> = {
+  Dashboard: "◉",
+  Catalog: "☷",
+  "Data Lake Subscriptions": "▰",
+  Engines: "✜",
+  Models: "♙",
+  "SAS Sync": "⇆",
+  Data: "▰",
+  Jobs: "☄",
+  Configurations: "⚙",
+  Queue: "◒",
+  Projects: "▣",
+  Inferences: "✹",
+  Authorizations: "◈",
+  Reports: "⌁",
+  Applications: "▣",
+  "ChatApps Collectives": "◎",
+  Agents: "✣",
+  MCPs: "▦",
+  Subscriptions: "↔",
+  "Authorization Requests": "☑",
+};
 
 export default function Home() {
   const [state, setState] = useState<AppState>(seedState);
   const [section, setSection] = useState("Dashboard");
   const [query, setQuery] = useState("");
   const [modal, setModal] = useState<string | null>(null);
-  const [simMode, setSimMode] = useState<"application" | "collective">("application");
-  const [sim, setSim] = useState({ app: "app-crm", collective: "col-mortgage", agent: "agt-customer", mcp: "mcp-customer", tool: "t-profile", endUser: "u123456@bbva.com", purpose: "customer_support" });
-  const [result, setResult] = useState<any>(null);
+  const [detail, setDetail] = useState<{ kind: string; id: string } | null>(null);
+  const [toast, setToast] = useState("");
+  const [selectedUuaa, setSelectedUuaa] = useState("KDIT");
+  const [profile, setProfile] = useState("Project Owner");
 
   useEffect(() => {
     const saved = localStorage.getItem(storageKey);
-    if (saved) setState(JSON.parse(saved));
+    if (saved) setState(normalizeState(JSON.parse(saved)));
   }, []);
   useEffect(() => localStorage.setItem(storageKey, JSON.stringify(state)), [state]);
 
@@ -29,24 +54,57 @@ export default function Home() {
   const addEntity = (kind: string, data: any) => {
     setState((s) => {
       const next: AppState = { ...s };
-      if (kind === "application") next.applications = [{ id: newId("app"), status: "Active", ...data }, ...s.applications];
-      if (kind === "collective") next.collectives = [{ id: newId("col"), status: "Active", ...data }, ...s.collectives];
-      if (kind === "agent") next.agents = [{ id: newId("agt"), status: "Active", ...data }, ...s.agents];
-      if (kind === "mcp") next.mcps = [{ id: newId("mcp"), status: "Active", tools: [], ...data }, ...s.mcps];
+      if (kind === "application") next.applications = [{ id: newId("app"), status: "Active", uuaa: selectedUuaa, ...data }, ...s.applications];
+      if (kind === "collective") next.collectives = [{ id: newId("col"), status: "Active", uuaa: selectedUuaa, ...data }, ...s.collectives];
+      if (kind === "agent") {
+        const id = newId("agt");
+        next.agents = [{ id, status: "Active", uuaa: selectedUuaa, ...defaultAgentCore(id), ...data }, ...s.agents];
+      }
+      if (kind === "mcp") {
+        const id = newId("mcp");
+        next.mcps = [{ id, status: "Active", uuaa: selectedUuaa, tools: data.tools || [], ...defaultGateway(id), ...data }, ...s.mcps];
+      }
       return next;
     });
     audit("Project Owner", `${kind}_created`, data.name, "allow", "Created from guided console form");
     setModal(null);
   };
 
+  const cancelRequest = (id: string) => {
+    const req = state.requests.find((r) => r.id === id);
+    setState((s) => ({ ...s, requests: s.requests.map((r) => r.id === id ? { ...r, status: "Revoked", updated: nowStamp(), conditions: "Cancelled by requester" } : r) }));
+    audit(req?.requester || "requester", "request_cancelled", req?.type || id, "cancelled", "Pending request cancelled from asset detail");
+  };
+
   const createRequest = (data: any) => {
     const type = data.type as RequestType;
-    const approver = type === "application_agent" ? state.agents.find((a) => a.id === data.targetId)?.owner : state.mcps.find((m) => m.id === data.targetId)?.owner;
-    const requester = type === "application_agent" ? state.applications.find((a) => a.id === data.sourceId)?.owner : type === "agent_mcp" ? state.agents.find((a) => a.id === data.sourceId)?.owner : state.collectives.find((c) => c.id === data.sourceId)?.owner;
-    const req = { id: newId("req"), status: "Pending", accessLevel: data.requestedAccess, toolIds: data.requestedToolIds || [], requestedToolIds: data.requestedToolIds || [], requester, approver, conditions: "", updated: nowStamp(), ...data };
+    const sourceId = data.sourceId || (type === "application_agent" ? state.applications[0]?.id : type === "agent_mcp" ? state.agents[0]?.id : state.collectives[0]?.id);
+    const targetId = data.targetId || (type === "application_agent" ? state.agents[0]?.id : state.mcps[0]?.id);
+    const approver = type === "application_agent" ? state.agents.find((a) => a.id === targetId)?.owner : state.mcps.find((m) => m.id === targetId)?.owner;
+    const requester = type === "application_agent" ? state.applications.find((a) => a.id === sourceId)?.owner : type === "agent_mcp" ? state.agents.find((a) => a.id === sourceId)?.owner : state.collectives.find((c) => c.id === sourceId)?.owner;
+    const req = { id: newId("req"), status: "Pending", accessLevel: data.requestedAccess, toolIds: data.requestedToolIds || [], requestedToolIds: data.requestedToolIds || [], requester, approver, conditions: "", updated: nowStamp(), ...data, sourceId, targetId };
     setState((s) => ({ ...s, requests: [req, ...s.requests] }));
     audit(requester || "requester", "subscription_requested", type, "pending", data.justification || "Subscription request submitted");
     setModal(null);
+  };
+
+  const deleteAsset = (kind: string, id: string) => {
+    const activeSubs = state.subscriptions.filter((s) => s.status !== "Revoked" && (s.sourceId === id || s.targetId === id || s.mcpId === id));
+    const pendingRequests = state.requests.filter((r) => r.status === "Pending" && (r.sourceId === id || r.targetId === id || r.mcpId === id));
+    if (activeSubs.length || pendingRequests.length) {
+      setToast(`No se puede borrar: tiene ${activeSubs.length} suscripciones activas y ${pendingRequests.length} solicitudes pendientes. Revocalas o cierralas antes.`);
+      return;
+    }
+    setState((s) => {
+      if (kind === "application") return { ...s, applications: s.applications.filter((a) => a.id !== id) };
+      if (kind === "collective") return { ...s, collectives: s.collectives.filter((c) => c.id !== id) };
+      if (kind === "agent") return { ...s, agents: s.agents.filter((a) => a.id !== id) };
+      if (kind === "mcp") return { ...s, mcps: s.mcps.filter((m) => m.id !== id) };
+      return s;
+    });
+    setDetail(null);
+    setToast("Asset borrado correctamente.");
+    audit("Project Owner", `${kind}_deleted`, id, "allow", "Asset had no active subscriptions or pending requests");
   };
 
   const decide = (id: string, decision: "Approved" | "Rejected" | "Partial") => {
@@ -66,106 +124,382 @@ export default function Home() {
   };
 
   const entityName = (id?: string) => [...state.applications, ...state.collectives, ...state.agents, ...state.mcps].find((e: any) => e.id === id)?.name || id || "-";
-  const mcp = state.mcps.find((m) => m.id === sim.mcp) || state.mcps[0];
-  const tools = mcp?.tools || [];
-
-  const canUseTool = (sub: any, tool: any) => sub && sub.status !== "Revoked" && (sub.accessLevel === "full" || sub.accessLevel === tool.type || (sub.accessLevel === "read" && tool.type === "read") || (sub.accessLevel === "write" && tool.type === "write") || (sub.accessLevel === "custom" && sub.toolIds.includes(tool.id)));
-  const runSimulation = () => {
-    const tool = tools.find((t) => t.id === sim.tool) || tools[0];
-    const steps: any[] = [];
-    let final = "allow";
-    if (simMode === "application") {
-      const aa = state.subscriptions.find((s) => s.type === "application_agent" && s.sourceId === sim.app && s.targetId === sim.agent && s.status !== "Revoked");
-      steps.push({ ok: !!aa, text: `${entityName(sim.app)} ${aa ? "is" : "is not"} subscribed to ${entityName(sim.agent)}.` });
-      const am = state.subscriptions.find((s) => s.type === "agent_mcp" && s.sourceId === sim.agent && s.targetId === sim.mcp && s.status !== "Revoked");
-      steps.push({ ok: !!am, text: `${entityName(sim.agent)} ${am ? "is" : "is not"} subscribed to ${entityName(sim.mcp)}.` });
-      const toolOk = canUseTool(am, tool);
-      steps.push({ ok: toolOk, text: `${tool.name} is a ${tool.type} tool; approved scope ${am?.accessLevel || "none"}.` });
-      if (!aa || !am || !toolOk) final = "deny";
-    } else {
-      const cm = state.subscriptions.find((s) => s.type === "collective_mcp" && s.sourceId === sim.collective && s.targetId === sim.mcp && s.status !== "Revoked");
-      steps.push({ ok: !!cm, text: `${entityName(sim.collective)} ${cm ? "is" : "is not"} subscribed to ${entityName(sim.mcp)} for conversational usage.` });
-      const toolOk = canUseTool(cm, tool);
-      steps.push({ ok: toolOk, text: `${tool.name} is a ${tool.type} tool; approved scope ${cm?.accessLevel || "none"}.` });
-      if (!cm || !toolOk) final = "deny";
-    }
-    if (final === "allow" && (tool.type === "critical_action" || tool.requiresApproval)) final = "require approval";
-    steps.push({ ok: true, warn: true, text: `End user identity propagated to MCP runtime: ${sim.endUser}.` });
-    const out = { final, tool, steps, correlationId: `ADA-${Math.floor(Math.random() * 90000 + 10000)}` };
-    setResult(out);
-    audit(sim.endUser, "access_simulated", `${entityName(sim.mcp)}.${tool.name}`, final, steps.map((s) => s.text).join(" "));
-  };
+  const entityUuaa = (id?: string) => ([...state.applications, ...state.collectives, ...state.agents, ...state.mcps].find((e: any) => e.id === id) as any)?.uuaa || "KDIT";
+  const byUuaa = (item: any) => (item.uuaa || "KDIT") === selectedUuaa;
+  const scopedAgents = state.agents.filter(byUuaa);
+  const scopedMcps = state.mcps.filter(byUuaa);
+  const scopedRequests = state.requests.filter((request) => entityUuaa(request.sourceId) === selectedUuaa || entityUuaa(request.targetId) === selectedUuaa || entityUuaa(request.mcpId) === selectedUuaa);
+  const canCreateApplication = profile === "Project Owner" || profile === "Application Manager";
+  const canManageAiAssets = profile === "Project Owner" || profile === "AI Engineer";
+  const canApproveRequests = profile === "Project Owner" || profile === "Operations";
 
   return (
     <div className="shell">
       <aside className="side">
         <div className="brand"><span>ADA</span><span className="brand-mark">Λ</span><span>console</span></div>
+        <div className="side-scroll">
+        <div className="nav"><NavButton label="Dashboard" section={section} setSection={setSection} /></div>
+        <div className="group-title">DATA LAKE</div>
+        <div className="nav">
+          <NavButton label="Catalog" section={section} setSection={setSection} badge="NEW" />
+          <NavButton label="Data Lake Subscriptions" section={section} setSection={setSection} />
+        </div>
+        <div className="group-title">SANDBOX</div>
+        <div className="nav">
+          <NavButton label="Engines" section={section} setSection={setSection} />
+          <NavButton label="Models" section={section} setSection={setSection} />
+          <NavButton label="SAS Sync" section={section} setSection={setSection} />
+          <NavButton label="Data" section={section} setSection={setSection} />
+        </div>
+        <div className="group-title">DATAPROC</div>
+        <div className="nav">
+          <NavButton label="Jobs" section={section} setSection={setSection} />
+          <NavButton label="Configurations" section={section} setSection={setSection} />
+          <NavButton label="Queue" section={section} setSection={setSection} />
+        </div>
         <div className="group-title">PLATFORM</div>
-        <div className="nav"><button className={section === "Dashboard" ? "active" : ""} onClick={() => setSection("Dashboard")}>◉ Dashboard</button></div>
+        <div className="nav">
+          <NavButton label="Projects" section={section} setSection={setSection} />
+          <NavButton label="Inferences" section={section} setSection={setSection} />
+          <NavButton label="Authorizations" section={section} setSection={setSection} />
+        </div>
         <div className="group-title">AI AGENTS</div>
-        <div className="nav">{sections.slice(1).map((s) => <button key={s} className={section === s ? "active" : ""} onClick={() => setSection(s)}><span>{icons[s]}</span>{s}</button>)}</div>
+        <div className="nav">{aiSections.map((s) => <NavButton key={s} label={s} section={section} setSection={setSection} />)}</div>
+        <div className="group-title">TOOLS</div>
+        <div className="nav"><NavButton label="Reports" section={section} setSection={setSection} /></div>
+        </div>
+        <div className="side-footer"><span>BBVA</span><span className="footer-icon">↘</span><span className="footer-icon">▣</span><span className="footer-icon">≪</span></div>
       </aside>
       <main className="main">
-        <div className="top"><div className="title">☰ <span>{section.toUpperCase()}</span></div><div className="top-actions">♡ ⚐ ▦ <span className="chip">Project Owner</span><span className="avatar">FE</span></div></div>
-        <div className="crumbs"><span>Sandbox / <b>AI Agents</b> / {section}</span><span className="chips"><span className="chip blue">ES</span><span className="chip">GL</span><span className="chip">PROD</span></span></div>
+        <div className="top"><div className="title">☰ <span>{section.toUpperCase()}</span></div><div className="top-actions">♡ ⚐ ▦ <select className="profile-select" value={profile} onChange={(e) => setProfile(e.target.value)}>{profiles.map((item) => <option key={item}>{item}</option>)}</select><span className="avatar">FE</span></div></div>
+        <div className="crumbs"><span><b>AI Project</b> / {section} / <select className="crumb-select" value={selectedUuaa} onChange={(e) => setSelectedUuaa(e.target.value)}>{uuaas.map((u) => <option key={u}>{u}</option>)}</select></span><span className="chips"><span className="chip blue">ES</span><span className="chip">GL</span><span className="chip">PROD</span></span></div>
         <div className="content">
           {section === "Dashboard" && <Dashboard state={state} setSection={setSection} />}
-          {section === "Applications" && <Inventory title="Applications" hint="Las aplicaciones consumidoras son sistemas o canales que pueden solicitar acceso a agentes. Una aplicacion no accede directamente a MCPs." rows={state.applications} columns={["name","owner","businessArea","country","environment","status"]} query={query} setQuery={setQuery} onNew={() => setModal("application")} />}
-          {section === "User Collectives" && <Inventory title="User Collectives" hint="Los colectivos representan grupos de usuarios que utilizan asistentes conversacionales enterprise como ChatGPT Enterprise o Gemini Enterprise." rows={state.collectives} columns={["name","owner","businessArea","country","platform","status"]} query={query} setQuery={setQuery} onNew={() => setModal("collective")} />}
-          {section === "Agents" && <Inventory title="Agents" hint="Los agentes encapsulan capacidades de IA. Pueden ser consumidos por aplicaciones y solicitar acceso a MCPs." rows={state.agents} columns={["name","type","owner","businessArea","country","environment","criticality","status"]} query={query} setQuery={setQuery} onNew={() => setModal("agent")} />}
-          {section === "MCPs" && <Mcps state={state} query={query} setQuery={setQuery} onNew={() => setModal("mcp")} />}
-          {section === "Subscriptions" && <Subscriptions state={state} entityName={entityName} revoke={revoke} />}
-          {section === "Requests" && <Requests state={state} entityName={entityName} decide={decide} onNew={() => setModal("request")} />}
-          {section === "Simulator" && <Simulator state={state} sim={sim} setSim={setSim} simMode={simMode} setSimMode={setSimMode} mcp={mcp} tools={tools} runSimulation={runSimulation} result={result} />}
-          {section === "Audit" && <Audit state={state} />}
-          {section === "Policies" && <Policies />}
+          {toast && <div className="hint"><b>{toast}</b></div>}
+          {section === "Applications" && <Inventory title="Applications" hint="Las aplicaciones consumidoras son sistemas o canales que solicitan autorizacion para invocar agentes. La gestion de MCPs se realiza desde la pantalla de Agents." rows={state.applications} columns={["name","owner","businessArea","country","environment","status"]} query={query} setQuery={setQuery} onNew={canCreateApplication ? () => setModal("application") : undefined} onView={(id: string) => setDetail({ kind: "application", id })} onDelete={canCreateApplication ? (id: string) => deleteAsset("application", id) : undefined} />}
+          {section === "ChatApps Collectives" && <Inventory title="ChatApps Collectives" hint="Los colectivos ChatApps representan grupos de usuarios que utilizan asistentes conversacionales enterprise como ChatGPT Enterprise o Gemini Enterprise." rows={state.collectives} columns={["name","owner","businessArea","country","platform","status"]} query={query} setQuery={setQuery} onNew={canCreateApplication ? () => setModal("collective") : undefined} onView={(id: string) => setDetail({ kind: "collective", id })} onDelete={canCreateApplication ? (id: string) => deleteAsset("collective", id) : undefined} />}
+          {section === "Agents" && <Inventory title="Agents" hint={`Los agentes encapsulan capacidades de IA y se alinean con Amazon Bedrock AgentCore Registry como catalogo de lifecycle, Runtime, Identity y observabilidad. Mostrando solo agentes de la UUAA ${selectedUuaa}.`} rows={scopedAgents} columns={["uuaa","name","type","registryAgentId","agentVersion","deploymentStage","identityMode","criticality","status"]} query={query} setQuery={setQuery} onNew={canManageAiAssets ? () => setModal("agent") : undefined} onView={(id: string) => setDetail({ kind: "agent", id })} onDelete={canManageAiAssets ? (id: string) => deleteAsset("agent", id) : undefined} />}
+          {section === "MCPs" && <Mcps state={{ ...state, mcps: scopedMcps }} query={query} setQuery={setQuery} onNew={canManageAiAssets ? () => setModal("mcp") : undefined} onView={(id: string) => setDetail({ kind: "mcp", id })} onDelete={canManageAiAssets ? (id: string) => deleteAsset("mcp", id) : undefined} selectedUuaa={selectedUuaa} />}
+          {section === "Authorization Requests" && <AuthorizationRequests requests={scopedRequests} entityName={entityName} decide={decide} canApprove={canApproveRequests} selectedUuaa={selectedUuaa} />}
+          {placeholderSections.includes(section) && <PlaceholderSection section={section} />}
         </div>
       </main>
-      {modal && <EntityModal modal={modal} close={() => setModal(null)} state={state} addEntity={addEntity} createRequest={createRequest} />}
+      {detail && <DetailModal detail={detail} close={() => setDetail(null)} state={state} entityName={entityName} createRequest={createRequest} deleteAsset={deleteAsset} cancelRequest={cancelRequest} selectedUuaa={selectedUuaa} uuaas={uuaas} profile={profile} />}
+      {modal && <EntityModal modal={modal} close={() => setModal(null)} state={state} addEntity={addEntity} createRequest={createRequest} selectedUuaa={selectedUuaa} uuaas={uuaas} />}
     </div>
   );
 }
 
+function inferUuaa(id: string) {
+  if (id.includes("payments")) return "PAYM";
+  if (id.includes("fraud")) return "FRAD";
+  if (id.includes("risk") || id.includes("compliance") || id.includes("credit")) return "RISK";
+  if (id.includes("doc")) return "DATA";
+  if (id.includes("cards")) return "CARD";
+  if (id.includes("loans") || id.includes("mortgage")) return "LOAN";
+  if (id.includes("wealth")) return "WLTH";
+  return "KDIT";
+}
+
+function defaultAgentCore(id: string) {
+  return {
+    registryProvider: "Amazon Bedrock AgentCore Registry",
+    registryAgentId: `agcore-${id}`,
+    agentVersion: "1.0.0",
+    runtimeArn: `arn:aws:bedrock-agentcore:eu-west-1:012345678901:runtime/${id}`,
+    deploymentStage: "registered",
+    identityMode: "pre_authorized",
+    observability: "CloudWatch traces enabled",
+  };
+}
+
+function defaultGateway(id: string) {
+  return {
+    gatewayId: `gw-${id}`,
+    mcpServerId: `mcp-server-${id}`,
+    protocol: "MCP via AgentCore Gateway",
+    authMode: "iam",
+    identityMode: "end_user",
+    observability: "Gateway invocation metrics enabled",
+  };
+}
+
+function normalizeTool(tool: any) {
+  return {
+    gatewayRoute: `/tools/${tool.name || tool.id}`,
+    toolSchema: "json-schema:v1",
+    ...tool,
+  };
+}
+
+function normalizeState(saved: AppState): AppState {
+  return {
+    ...saved,
+    applications: saved.applications.map((item: any) => ({ ...item, uuaa: item.uuaa || "KDIT" })),
+    collectives: saved.collectives.map((item: any) => ({ ...item, uuaa: item.uuaa || "KDIT" })),
+    agents: saved.agents.map((item: any) => ({ ...defaultAgentCore(item.id), ...item, uuaa: item.uuaa || inferUuaa(item.id) })),
+    mcps: saved.mcps.map((item: any) => ({ ...defaultGateway(item.id), ...item, tools: (item.tools || []).map(normalizeTool), uuaa: item.uuaa || inferUuaa(item.id) })),
+  };
+}
+
+function NavButton({ label, section, setSection, badge }: any) {
+  return <button className={section === label ? "active" : ""} onClick={() => setSection(label)}><span>{icons[label]}</span><span className="nav-label">{label.replace("Data Lake ", "")}</span>{badge && <span className="nav-badge">{badge}</span>}</button>;
+}
+
 function Dashboard({ state, setSection }: any) {
-  const metrics = [["Applications", state.applications.length], ["Collectives", state.collectives.length], ["Agents", state.agents.length], ["MCPs", state.mcps.length], ["Tools", state.mcps.flatMap((m: any) => m.tools).length], ["Active subscriptions", state.subscriptions.filter((s: any) => s.status === "Active").length], ["Pending requests", state.requests.filter((r: any) => r.status === "Pending").length], ["Audit events", state.audit.length]];
-  return <><p className="hint">Control plane de gobierno para Application &rarr; Agent, Agent &rarr; MCP y Collective &rarr; MCP. Use esta pantalla para detectar trabajo pendiente y navegar a los flujos clave.</p><div className="grid">{metrics.map(([k,v]: any) => <div className="metric" key={k}><span>{k}</span><strong>{v}</strong></div>)}</div><div className="split"><div className="panel"><div className="panel-head"><b>Pending approvals</b><button className="btn ghost" onClick={() => setSection("Requests")}>Open requests</button></div><Rows rows={state.requests.filter((r: any) => r.status === "Pending")} columns={["type","requester","approver","purpose","status"]} /></div><div className="panel"><div className="panel-head"><b>Governance alerts</b></div><table><tbody><tr><td>Critical tools require human approval</td><td><span className="badge Critical">Critical</span></td></tr><tr><td>New MCP tools blocked until classified</td><td><span className="badge Medium">Medium</span></td></tr><tr><td>End user identity must be propagated to MCP runtime</td><td><span className="badge High">High</span></td></tr></tbody></table></div></div></>;
+  const metrics = [["Applications", state.applications.length], ["ChatApps collectives", state.collectives.length], ["Agents", state.agents.length], ["MCPs", state.mcps.length], ["Tools", state.mcps.flatMap((m: any) => m.tools).length], ["Active authorizations", state.subscriptions.filter((s: any) => s.status === "Active").length], ["Pending requests", state.requests.filter((r: any) => r.status === "Pending").length]];
+  return <><p className="hint">Control plane de gobierno para Application &rarr; Agent, Agent &rarr; MCP y ChatApps Collective &rarr; MCP. Use esta pantalla para detectar trabajo pendiente y navegar a los flujos clave.</p><div className="grid">{metrics.map(([k,v]: any) => <div className="metric" key={k}><span>{k}</span><strong>{v}</strong></div>)}</div><div className="split"><div className="panel"><div className="panel-head"><b>Pending approvals</b><button className="btn ghost" onClick={() => setSection("Authorization Requests")}>Open requests</button></div><Rows rows={state.requests.filter((r: any) => r.status === "Pending")} columns={["type","requester","approver","purpose","status"]} /></div><div className="panel"><div className="panel-head"><b>Governance alerts</b></div><table><tbody><tr><td>Critical tools require human approval</td><td><span className="badge Critical">Critical</span></td></tr><tr><td>New MCP tools blocked until classified</td><td><span className="badge Medium">Medium</span></td></tr><tr><td>End user identity must be propagated to MCP runtime</td><td><span className="badge High">High</span></td></tr></tbody></table></div></div></>;
 }
 
-function Inventory({ title, hint, rows, columns, query, setQuery, onNew }: any) {
-  const filtered = rows.filter((r: any) => JSON.stringify(r).toLowerCase().includes(query.toLowerCase()));
-  return <><p className="hint">{hint}</p><div className="panel"><div className="panel-head"><div className="panel-title">{icons[title] || "▣"} {title}</div><div className="toolbar"><input className="search" placeholder={`Search ${title.toLowerCase()} by name...`} value={query} onChange={(e) => setQuery(e.target.value)} /><button className="btn" onClick={onNew}>+ New</button></div></div><Rows rows={filtered} columns={columns} /></div></>;
+function PlaceholderSection({ section }: any) {
+  return (
+    <>
+      <p className="hint">Esta opcion forma parte del menu ADA Console para mantener el look & feel de la plataforma. No tiene funcionalidad implementada en esta maqueta.</p>
+      <div className="panel">
+        <div className="panel-head"><div className="panel-title">{icons[section]} {section}</div><div className="toolbar"><input className="search" placeholder={`Search ${section.toLowerCase()} by name...`} disabled /><button className="btn secondary">Disabled</button></div></div>
+        <table>
+          <thead><tr><th>Name</th><th>Type</th><th>Environment</th><th>Updated</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody>
+            <tr><td>{section} placeholder</td><td>ADA Console</td><td>Sandbox</td><td>04-07-2026</td><td><span className="badge Pending">Out of scope</span></td><td><button className="btn ghost">View</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
 }
 
-function Rows({ rows, columns }: any) {
-  return <table><thead><tr>{columns.map((c: string) => <th key={c}>{c}</th>)}<th>Actions</th></tr></thead><tbody>{rows.map((r: any) => <tr key={r.id}>{columns.map((c: string) => <td key={c}>{badge(c, r[c])}</td>)}<td><button className="btn ghost">View</button></td></tr>)}</tbody></table>;
+function Inventory({ title, hint, rows, columns, query, setQuery, onNew, onView, onDelete }: any) {
+  const filtered = rows.filter((r: any) => JSON.stringify(r).toLowerCase().includes(query.toLowerCase())).sort((a: any, b: any) => Number((b.uuaa || "").toLowerCase().startsWith(query.toLowerCase())) - Number((a.uuaa || "").toLowerCase().startsWith(query.toLowerCase())));
+  return <><p className="hint">{hint}</p><div className="panel"><div className="panel-head"><div className="panel-title">{icons[title] || "▣"} {title}</div><div className="toolbar"><input className="search" placeholder={`Search ${title.toLowerCase()} by name...`} value={query} onChange={(e) => setQuery(e.target.value)} />{onNew && <button className="btn" onClick={onNew}>+ New</button>}</div></div><Rows rows={filtered} columns={columns} onView={onView} onDelete={onDelete} /></div></>;
+}
+
+function Rows({ rows, columns, onView, onDelete }: any) {
+  const hasActions = onView || onDelete;
+  return <table><thead><tr>{columns.map((c: string) => <th key={c}>{c}</th>)}{hasActions && <th>Actions</th>}</tr></thead><tbody>{rows.map((r: any) => <tr key={r.id}>{columns.map((c: string) => <td key={c}>{badge(c, r[c])}</td>)}{hasActions && <td><div className="toolbar">{onView && <button className="btn ghost" onClick={() => onView(r.id)}>View</button>}{onDelete && <button className="btn danger" onClick={() => onDelete(r.id)}>Delete</button>}</div></td>}</tr>)}</tbody></table>;
 }
 const badge = (key: string, value: any) => ["status","criticality","risk","type"].includes(key) ? <span className={`badge ${value}`}>{value}</span> : String(value ?? "-");
 
-function Mcps({ state, query, setQuery, onNew }: any) {
-  const rows = state.mcps.filter((m: any) => JSON.stringify(m).toLowerCase().includes(query.toLowerCase())).map((m: any) => ({ ...m, tools: m.tools.length, readTools: m.tools.filter((t: any) => t.type === "read").length, writeTools: m.tools.filter((t: any) => t.type !== "read").length }));
-  return <><p className="hint">Los MCPs exponen tools consumidas por agentes o colectivos autorizados. Cada MCP tiene un owner responsable de aprobar accesos.</p><div className="panel"><div className="panel-head"><div className="panel-title">▦ MCPs</div><div className="toolbar"><input className="search" placeholder="Search MCPs..." value={query} onChange={(e) => setQuery(e.target.value)} /><button className="btn" onClick={onNew}>+ New MCP</button></div></div><Rows rows={rows} columns={["name","owner","businessArea","backendSystem","environment","risk","tools","readTools","writeTools","status"]} /></div></>;
+function Mcps({ state, query, setQuery, onNew, onView, onDelete }: any) {
+  const rows = state.mcps.filter((m: any) => JSON.stringify(m).toLowerCase().includes(query.toLowerCase())).sort((a: any, b: any) => Number((b.uuaa || "").toLowerCase().startsWith(query.toLowerCase())) - Number((a.uuaa || "").toLowerCase().startsWith(query.toLowerCase()))).map((m: any) => ({ ...m, tools: m.tools.length, readTools: m.tools.filter((t: any) => t.type === "read").length, writeTools: m.tools.filter((t: any) => t.type !== "read").length }));
+  return <><p className="hint">Los MCPs se tratan como servidores expuestos por Amazon Bedrock AgentCore Gateway: ADA gobierna la autorizacion, Gateway publica tools MCP y propaga identidad segun el modo configurado.</p><div className="panel"><div className="panel-head"><div className="panel-title">▦ MCPs</div><div className="toolbar"><input className="search" placeholder="Search MCPs by UUAA or name..." value={query} onChange={(e) => setQuery(e.target.value)} />{onNew && <button className="btn" onClick={onNew}>+ New MCP</button>}</div></div><Rows rows={rows} columns={["uuaa","name","gatewayId","authMode","identityMode","backendSystem","risk","tools","readTools","writeTools","status"]} onView={onView} onDelete={onDelete} /></div></>;
 }
 
-function Subscriptions({ state, entityName, revoke }: any) {
-  return <><p className="hint">Vista unica de suscripciones activas: Application &rarr; Agent, Agent &rarr; MCP y Collective &rarr; MCP. Desde aqui puede revocar accesos existentes.</p><div className="panel"><div className="panel-head"><b>Subscriptions</b></div><table><thead><tr>{["Type","Source","Target","Access","Tools","Approver","Status","Expiration","Actions"].map(h => <th key={h}>{h}</th>)}</tr></thead><tbody>{state.subscriptions.map((s: any) => <tr key={s.id}><td>{s.type}</td><td>{entityName(s.sourceId)}</td><td>{entityName(s.targetId)}</td><td>{s.accessLevel}</td><td>{s.toolIds.length || "All by scope"}</td><td>{s.approver}</td><td>{badge("status", s.status)}</td><td>{s.expiration}</td><td><button className="btn danger" onClick={() => revoke(s.id)}>Revoke</button></td></tr>)}</tbody></table></div></>;
-}
-
-function Requests({ state, entityName, decide, onNew }: any) {
-  return <><p className="hint">Las solicitudes son peticiones pendientes de aprobacion. Application &rarr; Agent las aprueba Agent Owner; Agent/Collective &rarr; MCP las aprueba MCP Owner.</p><div className="panel"><div className="panel-head"><b>Requests</b><button className="btn" onClick={onNew}>+ New request</button></div><table><thead><tr>{["Type","Source","Target","Requested","Requester","Approver","Purpose","Status","Actions"].map(h => <th key={h}>{h}</th>)}</tr></thead><tbody>{state.requests.map((r: any) => <tr key={r.id}><td>{r.type}</td><td>{entityName(r.sourceId)}</td><td>{entityName(r.targetId)}</td><td>{r.requestedAccess}</td><td>{r.requester}</td><td>{r.approver}</td><td>{r.purpose}</td><td>{badge("status", r.status)}</td><td>{r.status === "Pending" ? <div className="toolbar"><button className="btn" onClick={() => decide(r.id, "Approved")}>Approve</button><button className="btn secondary" onClick={() => decide(r.id, "Partial")}>Partial</button><button className="btn danger" onClick={() => decide(r.id, "Rejected")}>Reject</button></div> : "Closed"}</td></tr>)}</tbody></table></div></>;
-}
-
-function Simulator({ state, sim, setSim, simMode, setSimMode, mcp, tools, runSimulation, result }: any) {
-  const set = (k: string, v: string) => setSim((s: any) => ({ ...s, [k]: v, ...(k === "mcp" ? { tool: state.mcps.find((m: any) => m.id === v)?.tools[0]?.id } : {}) }));
-  return <><p className="hint">Use el simulador para comprobar paso a paso si una aplicacion, agente o colectivo puede utilizar una tool concreta. La identidad del usuario final se propaga siempre al MCP simulado.</p><div className="split"><div className="panel"><div className="panel-head"><b>Authorization simulator</b><div className="toolbar"><button className={`btn ${simMode === "application" ? "" : "secondary"}`} onClick={() => setSimMode("application")}>Application mode</button><button className={`btn ${simMode === "collective" ? "" : "secondary"}`} onClick={() => setSimMode("collective")}>Conversational mode</button></div></div><div className="modal-body form two">{simMode === "application" ? <><Field label="Application" value={sim.app} set={(v: string) => set("app", v)} options={state.applications} /><Field label="Agent" value={sim.agent} set={(v: string) => set("agent", v)} options={state.agents} /></> : <Field label="User Collective" value={sim.collective} set={(v: string) => set("collective", v)} options={state.collectives} />}<Field label="MCP" value={sim.mcp} set={(v: string) => set("mcp", v)} options={state.mcps} /><Field label="Tool" value={sim.tool} set={(v: string) => set("tool", v)} options={tools} /><div className="field"><label>End user identity</label><input value={sim.endUser} onChange={(e) => set("endUser", e.target.value)} /></div><div className="field"><label>Purpose</label><input value={sim.purpose} onChange={(e) => set("purpose", e.target.value)} /></div><button className="btn" onClick={runSimulation}>Run evaluation</button></div></div><div className="result">{result ? <><h3>Decision: {result.final}</h3><p>Correlation ID: {result.correlationId}</p><div className="steps">{result.steps.map((s: any, i: number) => <div key={i} className={`step ${s.warn ? "warn" : s.ok ? "ok" : "no"}`}>{s.text}</div>)}</div></> : "Run a simulation to see the authorization trace."}</div></div></>;
+function AuthorizationRequests({ requests, entityName, decide, canApprove, selectedUuaa }: any) {
+  return <><p className="hint">Authorization Requests muestra solo peticiones relacionadas con la UUAA {selectedUuaa}. Project Owner y Operations pueden aprobar o rechazar.</p><div className="panel"><div className="panel-head"><b>Authorization Requests</b></div><table><thead><tr>{["Type","Source","Target","Requested","Requester","Approver","Purpose","Status","Actions"].map(h => <th key={h}>{h}</th>)}</tr></thead><tbody>{requests.map((r: any) => <tr key={r.id}><td>{r.type}</td><td>{entityName(r.sourceId)}</td><td>{entityName(r.targetId)}</td><td>{r.requestedAccess}</td><td>{r.requester}</td><td>{r.approver}</td><td>{r.purpose}</td><td>{badge("status", r.status)}</td><td>{r.status === "Pending" && canApprove ? <div className="toolbar"><button className="btn" onClick={() => decide(r.id, "Approved")}>Approve</button><button className="btn secondary" onClick={() => decide(r.id, "Partial")}>Partial</button><button className="btn danger" onClick={() => decide(r.id, "Rejected")}>Reject</button></div> : r.status === "Pending" ? "Pending approval" : "Closed"}</td></tr>)}</tbody></table></div></>;
 }
 
 function Field({ label, value, set, options }: any) { return <div className="field"><label>{label}</label><select value={value} onChange={(e) => set(e.target.value)}>{options.map((o: any) => <option key={o.id} value={o.id}>{o.name}</option>)}</select></div>; }
-function Audit({ state }: any) { return <><p className="hint">Auditoria automatica de acciones relevantes, decisiones, simulaciones y correlation IDs.</p><div className="panel"><div className="panel-head"><b>Audit</b></div><Rows rows={state.audit} columns={["timestamp","actor","action","entity","decision","reason","correlationId"]} /></div></>; }
-function Policies() { return <><p className="hint">Politicas base de la maqueta. En una version productiva se conectarian a un motor de decision runtime.</p><div className="panel"><div className="panel-head"><b>Policies</b></div><table><tbody>{["Deny if no explicit subscription exists","MCP Owner approves Agent/Collective &rarr; MCP","Agent Owner approves Application &rarr; Agent","Critical actions require approval or human-in-the-loop","End user identity must be propagated to MCP runtime","New tools require classification before broad access"].map((p) => <tr key={p}><td>{p}</td><td><span className="badge Active">Active</span></td></tr>)}</tbody></table></div></>; }
 
-function EntityModal({ modal, close, state, addEntity, createRequest }: any) {
-  const [form, setForm] = useState<any>({ country: "ES", environment: "prod", businessArea: "Retail Banking", requestedAccess: "read", requestedToolIds: [], expiration: "31-12-2026", type: "application_agent" });
+function DetailModal({ detail, close, state, entityName, createRequest, deleteAsset, cancelRequest, selectedUuaa, uuaas, profile }: any) {
+  const asset = detail.kind === "application" ? state.applications.find((a: any) => a.id === detail.id) : detail.kind === "collective" ? state.collectives.find((c: any) => c.id === detail.id) : detail.kind === "agent" ? state.agents.find((a: any) => a.id === detail.id) : state.mcps.find((m: any) => m.id === detail.id);
+  const [request, setRequest] = useState<any>({ uuaa: selectedUuaa, agentId: state.agents.find((a: any) => (a.uuaa || "KDIT") === selectedUuaa)?.id || state.agents[0]?.id, mcpId: state.mcps.find((m: any) => (m.uuaa || "KDIT") === selectedUuaa)?.id || state.mcps[0]?.id, access: "read", requestedToolIds: [], purpose: "Business controlled access", justification: "Requested from asset detail view", expiration: "31-12-2026" });
+  if (!asset) return null;
+
+  const activeSubs = state.subscriptions.filter((s: any) => s.status !== "Revoked" && (s.sourceId === asset.id || s.targetId === asset.id || s.mcpId === asset.id));
+  const pendingRequests = state.requests.filter((r: any) => r.status === "Pending" && (r.sourceId === asset.id || r.targetId === asset.id || r.mcpId === asset.id));
+  const canDelete = activeSubs.length === 0 && pendingRequests.length === 0;
+
+  const pendingFor = (type: string, match: (r: any) => boolean) => state.requests.filter((r: any) => r.status === "Pending" && r.type === type && match(r));
+  const appAgentSubs = detail.kind === "application" ? [
+    ...state.subscriptions.filter((s: any) => s.type === "application_agent" && s.sourceId === asset.id && s.status !== "Revoked"),
+    ...pendingFor("application_agent", (r: any) => r.sourceId === asset.id),
+  ] : [];
+  const agentApps = detail.kind === "agent" ? [
+    ...state.subscriptions.filter((s: any) => s.type === "application_agent" && s.targetId === asset.id && s.status !== "Revoked"),
+    ...pendingFor("application_agent", (r: any) => r.targetId === asset.id),
+  ] : [];
+  const agentMcps = detail.kind === "agent" ? [
+    ...state.subscriptions.filter((s: any) => s.type === "agent_mcp" && s.sourceId === asset.id && s.status !== "Revoked"),
+    ...pendingFor("agent_mcp", (r: any) => r.sourceId === asset.id),
+  ] : [];
+  const mcpAgents = detail.kind === "mcp" ? state.subscriptions.filter((s: any) => s.type === "agent_mcp" && s.targetId === asset.id && s.status !== "Revoked") : [];
+  const mcpCollectives = detail.kind === "mcp" ? state.subscriptions.filter((s: any) => s.type === "collective_mcp" && s.targetId === asset.id && s.status !== "Revoked") : [];
+  const collectiveMcps = detail.kind === "collective" ? [
+    ...state.subscriptions.filter((s: any) => s.type === "collective_mcp" && s.sourceId === asset.id && s.status !== "Revoked"),
+    ...pendingFor("collective_mcp", (r: any) => r.sourceId === asset.id),
+  ] : [];
+  const filteredMcps = state.mcps.filter((m: any) => (m.uuaa || "KDIT") === request.uuaa);
+  const selectedMcp = filteredMcps.find((m: any) => m.id === request.mcpId) || filteredMcps[0] || state.mcps[0];
+  const canRequestAgent = profile === "Project Owner" || profile === "Application Manager";
+  const canRequestMcp = profile === "Project Owner" || profile === "AI Engineer";
+
+  const submitApplicationAgentRequest = () => {
+    createRequest({
+      type: "application_agent",
+      sourceId: asset.id,
+      targetId: request.agentId,
+      requestedAccess: "full",
+      requestedToolIds: [],
+      purpose: request.purpose,
+      justification: request.justification,
+      expiration: request.expiration,
+    });
+    close();
+  };
+
+  const submitAgentMcpRequest = () => {
+    createRequest({
+      type: "agent_mcp",
+      sourceId: asset.id,
+      targetId: request.mcpId,
+      mcpId: request.mcpId,
+      requestedAccess: request.access,
+      requestedToolIds: request.access === "custom" ? request.requestedToolIds : [],
+      purpose: request.purpose,
+      justification: request.justification,
+      expiration: request.expiration,
+    });
+    close();
+  };
+
+  const submitCollectiveMcpRequest = () => {
+    createRequest({
+      type: "collective_mcp",
+      sourceId: asset.id,
+      targetId: request.mcpId,
+      mcpId: request.mcpId,
+      requestedAccess: request.access,
+      requestedToolIds: request.access === "custom" ? request.requestedToolIds : [],
+      purpose: request.purpose,
+      justification: request.justification,
+      expiration: request.expiration,
+    });
+    close();
+  };
+
+  return (
+    <div className="modal-backdrop">
+      <div className="modal wide">
+        <div className="modal-head"><h2>{asset.name}</h2><div className="toolbar"><button className="btn secondary" onClick={close}>Close</button><button className="btn danger" onClick={() => deleteAsset(detail.kind, asset.id)}>{canDelete ? "Delete asset" : "Delete blocked"}</button></div></div>
+        <div className="modal-body">
+          <p className="hint">{canDelete ? "Este asset no tiene suscripciones activas ni solicitudes pendientes, por lo que puede borrarse." : `No se puede borrar todavia: tiene ${activeSubs.length} suscripciones activas y ${pendingRequests.length} solicitudes pendientes.`}</p>
+          <div className="split">
+            <div className="panel">
+              <div className="panel-head"><b>Asset data</b></div>
+              <KeyValues data={asset} />
+            </div>
+            <div className="panel">
+              <div className="panel-head"><b>Related activity</b></div>
+              <table><tbody><tr><td>Active subscriptions</td><td>{activeSubs.length}</td></tr><tr><td>Pending requests</td><td>{pendingRequests.length}</td></tr><tr><td>Status</td><td>{badge("status", asset.status)}</td></tr></tbody></table>
+            </div>
+          </div>
+
+          {(detail.kind === "agent" || detail.kind === "mcp") && <RegistryMapping kind={detail.kind} asset={asset} />}
+
+          {detail.kind === "application" && <>
+            <SectionTable title="Authorized agents" rows={appAgentSubs.map((s: any) => ({ ...s, agent: entityName(s.targetId), actions: s.status === "Pending" ? "Cancel request" : "" }))} columns={["agent","purpose","approver","status","expiration"]} cancelRequest={cancelRequest} />
+            {canRequestAgent ? <div className="panel">
+              <div className="panel-head"><b>Request authorization to invoke an agent</b></div>
+              <div className="modal-body form two">
+                <Field label="Agent requested" value={request.agentId} set={(v: string) => setRequest((r: any) => ({ ...r, agentId: v }))} options={state.agents.filter((a: any) => (a.uuaa || "KDIT") === selectedUuaa)} />
+                <div className="field"><label>Purpose</label><input value={request.purpose} onChange={(e) => setRequest((r: any) => ({ ...r, purpose: e.target.value }))} /></div>
+                <div className="field" style={{ gridColumn: "1 / -1" }}><label>Justification</label><textarea value={request.justification} onChange={(e) => setRequest((r: any) => ({ ...r, justification: e.target.value }))} /></div>
+                <button className="btn" onClick={submitApplicationAgentRequest}>Submit Agent Acces Request!</button>
+              </div>
+            </div> : <div className="hint">Solo Application Manager o Project Owner pueden solicitar autorizacion para invocar agentes desde una aplicacion.</div>}
+          </>}
+
+          {detail.kind === "agent" && <>
+            <SectionTable title="Consumer applications" rows={agentApps.map((s: any) => ({ ...s, application: entityName(s.sourceId) }))} columns={["application","purpose","requester","status","expiration"]} cancelRequest={cancelRequest} />
+            <SectionTable title="Authorized MCPs" rows={agentMcps.map((s: any) => ({ ...s, mcp: entityName(s.targetId) }))} columns={["mcp","accessLevel","conditions","approver","status","expiration"]} cancelRequest={cancelRequest} />
+            {canRequestMcp ? <div className="panel">
+              <div className="panel-head"><b>Request access to an MCP</b></div>
+              <div className="modal-body form two">
+                <Field label="UUAA" value={request.uuaa} set={(v: string) => setRequest((r: any) => ({ ...r, uuaa: v, mcpId: state.mcps.find((m: any) => (m.uuaa || "KDIT") === v)?.id || "" , requestedToolIds: [] }))} options={uuaas.map((u: string) => ({ id: u, name: u }))} />
+                <Field label="MCP requested" value={request.mcpId} set={(v: string) => setRequest((r: any) => ({ ...r, mcpId: v, requestedToolIds: [] }))} options={filteredMcps} />
+                <div className="field"><label>Access level</label><select value={request.access} onChange={(e) => setRequest((r: any) => ({ ...r, access: e.target.value }))}><option value="read">Read tools</option><option value="write">Write tools</option><option value="full">Full MCP access</option><option value="custom">Specific tools</option></select></div>
+                <div className="field"><label>Purpose</label><input value={request.purpose} onChange={(e) => setRequest((r: any) => ({ ...r, purpose: e.target.value }))} /></div>
+                <div className="field"><label>Expiration</label><input value={request.expiration} onChange={(e) => setRequest((r: any) => ({ ...r, expiration: e.target.value }))} /></div>
+                {request.access === "custom" && <ToolChecklist tools={selectedMcp?.tools || []} selected={request.requestedToolIds} setSelected={(toolIds: string[]) => setRequest((r: any) => ({ ...r, requestedToolIds: toolIds }))} />}
+                <div className="field" style={{ gridColumn: "1 / -1" }}><label>Justification</label><textarea value={request.justification} onChange={(e) => setRequest((r: any) => ({ ...r, justification: e.target.value }))} /></div>
+                <button className="btn" onClick={submitAgentMcpRequest}>Submit Agent &rarr; MCP request</button>
+              </div>
+            </div> : <div className="hint">Solo AI Engineer o Project Owner pueden solicitar autorizacion para usar MCPs desde un agente.</div>}
+          </>}
+
+          {detail.kind === "mcp" && <>
+            <SectionTable title="Tools" rows={asset.tools} columns={["name","type","gatewayRoute","toolSchema","resource","risk","requiresApproval","status"]} />
+            <SectionTable title="Authorized agents" rows={mcpAgents.map((s: any) => ({ ...s, agent: entityName(s.sourceId) }))} columns={["agent","accessLevel","conditions","requester","status","expiration"]} />
+            <SectionTable title="Authorized ChatApps collectives" rows={mcpCollectives.map((s: any) => ({ ...s, collective: entityName(s.sourceId) }))} columns={["collective","accessLevel","conditions","requester","status","expiration"]} />
+          </>}
+
+          {detail.kind === "collective" && <>
+            <SectionTable title="Authorized MCPs" rows={collectiveMcps.map((s: any) => ({ ...s, mcp: entityName(s.targetId) }))} columns={["mcp","accessLevel","conditions","approver","status","expiration"]} cancelRequest={cancelRequest} />
+            {canRequestMcp ? <div className="panel">
+              <div className="panel-head"><b>Request access to an MCP</b></div>
+              <div className="modal-body form two">
+                <Field label="UUAA" value={request.uuaa} set={(v: string) => setRequest((r: any) => ({ ...r, uuaa: v, mcpId: state.mcps.find((m: any) => (m.uuaa || "KDIT") === v)?.id || "", requestedToolIds: [] }))} options={uuaas.map((u: string) => ({ id: u, name: u }))} />
+                <Field label="MCP requested" value={request.mcpId} set={(v: string) => setRequest((r: any) => ({ ...r, mcpId: v, requestedToolIds: [] }))} options={filteredMcps} />
+                <div className="field"><label>Access level</label><select value={request.access} onChange={(e) => setRequest((r: any) => ({ ...r, access: e.target.value }))}><option value="read">Read tools</option><option value="write">Write tools</option><option value="full">Full MCP access</option><option value="custom">Specific tools</option></select></div>
+                <div className="field"><label>Purpose</label><input value={request.purpose} onChange={(e) => setRequest((r: any) => ({ ...r, purpose: e.target.value }))} /></div>
+                {request.access === "custom" && <ToolChecklist tools={selectedMcp?.tools || []} selected={request.requestedToolIds} setSelected={(toolIds: string[]) => setRequest((r: any) => ({ ...r, requestedToolIds: toolIds }))} />}
+                <div className="field" style={{ gridColumn: "1 / -1" }}><label>Justification</label><textarea value={request.justification} onChange={(e) => setRequest((r: any) => ({ ...r, justification: e.target.value }))} /></div>
+                <button className="btn" onClick={submitCollectiveMcpRequest}>Submit ChatApps Collective &rarr; MCP request</button>
+              </div>
+            </div> : <div className="hint">Solo AI Engineer o Project Owner pueden solicitar autorizacion para usar MCPs desde colectivos ChatApps.</div>}
+          </>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RegistryMapping({ kind, asset }: any) {
+  const rows = kind === "agent" ? [
+    { ada: "Agent", aws: "AgentCore Registry entry", value: asset.registryAgentId },
+    { ada: "Lifecycle", aws: "Registry stage + version", value: `${asset.deploymentStage} / ${asset.agentVersion}` },
+    { ada: "Execution", aws: "AgentCore Runtime", value: asset.runtimeArn },
+    { ada: "Identity", aws: "AgentCore Identity", value: asset.identityMode },
+    { ada: "Telemetry", aws: "AgentCore Observability", value: asset.observability },
+  ] : [
+    { ada: "MCP", aws: "AgentCore Gateway MCP server", value: asset.mcpServerId },
+    { ada: "Tool exposure", aws: "Gateway routes", value: asset.gatewayId },
+    { ada: "Authentication", aws: "Gateway auth mode", value: asset.authMode },
+    { ada: "Identity propagation", aws: "AgentCore Identity", value: asset.identityMode },
+    { ada: "Telemetry", aws: "AgentCore Observability", value: asset.observability },
+  ];
+  return <div className="panel relation-panel"><div className="panel-head"><b>AWS AgentCore alignment</b></div><Rows rows={rows.map((r: any, i: number) => ({ id: `${kind}-map-${i}`, ...r }))} columns={["ada","aws","value"]} /></div>;
+}
+
+function KeyValues({ data }: any) {
+  const entries = Object.entries(data).filter(([k]) => k !== "tools");
+  return <table><tbody>{entries.map(([k, v]) => <tr key={k}><td>{k}</td><td>{typeof v === "string" ? badge(k, v) : String(v)}</td></tr>)}</tbody></table>;
+}
+
+function SectionTable({ title, rows, columns, cancelRequest }: any) {
+  const canCancel = Boolean(cancelRequest);
+  return <div className="panel relation-panel"><div className="panel-head"><b>{title}</b></div>{rows.length ? <table><thead><tr>{columns.map((c: string) => <th key={c}>{c}</th>)}{canCancel && <th>Actions</th>}</tr></thead><tbody>{rows.map((r: any) => <tr key={r.id}>{columns.map((c: string) => <td key={c}>{badge(c, r[c])}</td>)}{canCancel && <td>{r.status === "Pending" ? <button className="btn danger" onClick={() => cancelRequest(r.id)}>Cancel request</button> : "-"}</td>}</tr>)}</tbody></table> : <div className="empty">No related records yet.</div>}</div>;
+}
+
+function ToolChecklist({ tools, selected, setSelected }: any) {
+  const toggle = (id: string) => {
+    setSelected(selected.includes(id) ? selected.filter((toolId: string) => toolId !== id) : [...selected, id]);
+  };
+  return (
+    <div className="field" style={{ gridColumn: "1 / -1" }}>
+      <label>Specific tools requested</label>
+      <div className="check-grid">
+        {tools.map((tool: any) => (
+          <label key={tool.id} className="check-row">
+            <input type="checkbox" checked={selected.includes(tool.id)} onChange={() => toggle(tool.id)} />
+            <span>{tool.name}</span>
+            <span className={`badge ${tool.type}`}>{tool.type}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EntityModal({ modal, close, state, addEntity, createRequest, selectedUuaa }: any) {
+  const [form, setForm] = useState<any>({ country: "ES", environment: "prod", businessArea: "Retail Banking", requestedAccess: "read", requestedToolIds: [], expiration: "31-12-2026", type: "application_agent", uuaa: selectedUuaa, tools: [], registryProvider: "Amazon Bedrock AgentCore Registry", agentVersion: "1.0.0", deploymentStage: "registered", identityMode: "pre_authorized", protocol: "MCP via AgentCore Gateway", authMode: "iam" });
+  const [toolDraft, setToolDraft] = useState<any>({ name: "", type: "read", resource: "", risk: "Medium" });
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
+  const addToolDraft = () => {
+    if (!toolDraft.name.trim()) return;
+    set("tools", [...form.tools, { id: newId("tool"), description: `${toolDraft.name} over ${toolDraft.resource || "resource"}`, sensitivity: toolDraft.risk, requiresApproval: toolDraft.type !== "read", status: "Active", gatewayRoute: `/tools/${toolDraft.name}`, toolSchema: "json-schema:v1", ...toolDraft }]);
+    setToolDraft({ name: "", type: "read", resource: "", risk: "Medium" });
+  };
   const save = () => {
     if (modal === "request") createRequest(form);
     else addEntity(modal, form);
@@ -173,5 +507,5 @@ function EntityModal({ modal, close, state, addEntity, createRequest }: any) {
   const title = modal === "request" ? "Create subscription request" : `Create ${modal}`;
   const requestTargetOptions = form.type === "application_agent" ? state.agents : state.mcps;
   const requestSourceOptions = form.type === "application_agent" ? state.applications : form.type === "agent_mcp" ? state.agents : state.collectives;
-  return <div className="modal-backdrop"><div className="modal"><div className="modal-head"><h2>{title}</h2><button className="btn secondary" onClick={close}>Close</button></div><div className="modal-body"><p className="hint">Formulario guiado de maqueta. Complete los campos principales y revise el owner aprobador antes de confirmar.</p><div className="form two">{modal !== "request" ? <><div className="field"><label>Name</label><input onChange={(e) => set("name", e.target.value)} /></div><div className="field"><label>Owner</label><input onChange={(e) => set("owner", e.target.value)} placeholder="Business or technical owner" /></div><div className="field"><label>Business area</label><input value={form.businessArea} onChange={(e) => set("businessArea", e.target.value)} /></div><div className="field"><label>Country</label><input value={form.country} onChange={(e) => set("country", e.target.value)} /></div>{modal === "collective" ? <div className="field"><label>Conversational platform</label><select onChange={(e) => set("platform", e.target.value)}><option>ChatGPT Enterprise</option><option>Gemini Enterprise</option><option>Copilot Studio</option></select></div> : <div className="field"><label>Environment</label><select value={form.environment} onChange={(e) => set("environment", e.target.value)}><option>dev</option><option>pre</option><option>prod</option></select></div>}{modal === "agent" && <><div className="field"><label>Agent type</label><input onChange={(e) => set("type", e.target.value)} placeholder="advisor, service, risk..." /></div><div className="field"><label>Criticality</label><select onChange={(e) => set("criticality", e.target.value)}><option>Medium</option><option>High</option><option>Critical</option></select></div></>}{modal === "mcp" && <><div className="field"><label>Backend system</label><input onChange={(e) => set("backendSystem", e.target.value)} /></div><div className="field"><label>Risk</label><select onChange={(e) => set("risk", e.target.value)}><option>Medium</option><option>High</option><option>Critical</option></select></div></>}<div className="field" style={{gridColumn: "1 / -1"}}><label>Description</label><textarea onChange={(e) => set("description", e.target.value)} /></div></> : <><div className="field"><label>Request type</label><select value={form.type} onChange={(e) => set("type", e.target.value)}><option value="application_agent">Application &rarr; Agent</option><option value="agent_mcp">Agent &rarr; MCP</option><option value="collective_mcp">Collective &rarr; MCP</option></select></div><Field label="Source" value={form.sourceId || requestSourceOptions[0]?.id} set={(v: string) => set("sourceId", v)} options={requestSourceOptions} /><Field label="Target" value={form.targetId || requestTargetOptions[0]?.id} set={(v: string) => set("targetId", v)} options={requestTargetOptions} /><div className="field"><label>Requested access</label><select value={form.requestedAccess} onChange={(e) => set("requestedAccess", e.target.value as AccessLevel)}><option value="full">Full MCP access</option><option value="read">Read tools</option><option value="write">Write tools</option><option value="custom">Specific tools</option></select></div><div className="field"><label>Purpose</label><input onChange={(e) => set("purpose", e.target.value)} /></div><div className="field"><label>Expiration</label><input value={form.expiration} onChange={(e) => set("expiration", e.target.value)} /></div><div className="field" style={{gridColumn: "1 / -1"}}><label>Justification</label><textarea onChange={(e) => set("justification", e.target.value)} /></div></>}</div></div><div className="modal-foot"><button className="btn secondary" onClick={close}>Cancel</button><button className="btn" onClick={save}>Confirm</button></div></div></div>;
+  return <div className="modal-backdrop"><div className="modal"><div className="modal-head"><h2>{title}</h2><button className="btn secondary" onClick={close}>Close</button></div><div className="modal-body"><p className="hint">Formulario guiado de maqueta. La UUAA se rellena con la seleccionada arriba: {selectedUuaa}. Los campos AWS son metadatos de alineacion, no conectan con AWS en local.</p><div className="form two">{modal !== "request" ? <><div className="field"><label>Name</label><input onChange={(e) => set("name", e.target.value)} /></div><div className="field"><label>UUAA</label><input value={form.uuaa} readOnly /></div><div className="field"><label>Owner</label><input onChange={(e) => set("owner", e.target.value)} placeholder="Business or technical owner" /></div><div className="field"><label>Business area</label><input value={form.businessArea} onChange={(e) => set("businessArea", e.target.value)} /></div><div className="field"><label>Country</label><input value={form.country} onChange={(e) => set("country", e.target.value)} /></div>{modal === "collective" ? <div className="field"><label>Conversational platform</label><select onChange={(e) => set("platform", e.target.value)}><option>ChatGPT Enterprise</option><option>Gemini Enterprise</option><option>Copilot Studio</option></select></div> : <div className="field"><label>Environment</label><select value={form.environment} onChange={(e) => set("environment", e.target.value)}><option>dev</option><option>pre</option><option>prod</option></select></div>}{modal === "agent" && <><div className="field"><label>Agent type</label><input onChange={(e) => set("type", e.target.value)} placeholder="advisor, service, risk..." /></div><div className="field"><label>Criticality</label><select onChange={(e) => set("criticality", e.target.value)}><option>Medium</option><option>High</option><option>Critical</option></select></div><div className="field"><label>Registry provider</label><input value={form.registryProvider} onChange={(e) => set("registryProvider", e.target.value)} /></div><div className="field"><label>Agent version</label><input value={form.agentVersion} onChange={(e) => set("agentVersion", e.target.value)} /></div><div className="field"><label>Deployment stage</label><select value={form.deploymentStage} onChange={(e) => set("deploymentStage", e.target.value)}><option>draft</option><option>registered</option><option>certified</option><option>deployed</option><option>retired</option></select></div><div className="field"><label>Identity mode</label><select value={form.identityMode} onChange={(e) => set("identityMode", e.target.value)}><option>workload</option><option>end_user</option><option>pre_authorized</option></select></div></>}{modal === "mcp" && <><div className="field"><label>Backend system</label><input onChange={(e) => set("backendSystem", e.target.value)} /></div><div className="field"><label>Risk</label><select onChange={(e) => set("risk", e.target.value)}><option>Medium</option><option>High</option><option>Critical</option></select></div><div className="field"><label>Protocol</label><input value={form.protocol} onChange={(e) => set("protocol", e.target.value)} /></div><div className="field"><label>Auth mode</label><select value={form.authMode} onChange={(e) => set("authMode", e.target.value)}><option>iam</option><option>oauth</option><option>api_key</option><option>none</option></select></div><div className="field"><label>Identity mode</label><select value={form.identityMode} onChange={(e) => set("identityMode", e.target.value)}><option>end_user</option><option>workload</option><option>pre_authorized</option></select></div><div className="field" style={{gridColumn: "1 / -1"}}><label>Tools</label><div className="tool-editor"><input placeholder="Tool name" value={toolDraft.name} onChange={(e) => setToolDraft((t: any) => ({ ...t, name: e.target.value }))} /><select value={toolDraft.type} onChange={(e) => setToolDraft((t: any) => ({ ...t, type: e.target.value }))}><option value="read">read</option><option value="write">write</option><option value="critical_action">critical_action</option></select><input placeholder="Resource" value={toolDraft.resource} onChange={(e) => setToolDraft((t: any) => ({ ...t, resource: e.target.value }))} /><button className="btn" type="button" onClick={addToolDraft}>Add tool</button></div>{form.tools.length ? <Rows rows={form.tools} columns={["name","type","gatewayRoute","resource","risk","status"]} /> : <div className="empty">Add at least the tools you want to expose in this MCP.</div>}</div></>}<div className="field" style={{gridColumn: "1 / -1"}}><label>Description</label><textarea onChange={(e) => set("description", e.target.value)} /></div></> : <><div className="field"><label>Request type</label><select value={form.type} onChange={(e) => set("type", e.target.value)}><option value="application_agent">Application &rarr; Agent</option><option value="agent_mcp">Agent &rarr; MCP</option><option value="collective_mcp">ChatApps Collective &rarr; MCP</option></select></div><Field label="Source" value={form.sourceId || requestSourceOptions[0]?.id} set={(v: string) => set("sourceId", v)} options={requestSourceOptions} /><Field label="Target" value={form.targetId || requestTargetOptions[0]?.id} set={(v: string) => set("targetId", v)} options={requestTargetOptions} /><div className="field"><label>Requested access</label><select value={form.requestedAccess} onChange={(e) => set("requestedAccess", e.target.value as AccessLevel)}><option value="full">Full MCP access</option><option value="read">Read tools</option><option value="write">Write tools</option><option value="custom">Specific tools</option></select></div><div className="field"><label>Purpose</label><input onChange={(e) => set("purpose", e.target.value)} /></div><div className="field"><label>Expiration</label><input value={form.expiration} onChange={(e) => set("expiration", e.target.value)} /></div><div className="field" style={{gridColumn: "1 / -1"}}><label>Justification</label><textarea onChange={(e) => set("justification", e.target.value)} /></div></>}</div></div><div className="modal-foot"><button className="btn secondary" onClick={close}>Cancel</button><button className="btn" onClick={save}>Confirm</button></div></div></div>;
 }

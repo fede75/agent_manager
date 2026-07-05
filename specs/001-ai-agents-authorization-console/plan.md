@@ -5,7 +5,7 @@
 - Next.js App Router.
 - React + TypeScript.
 - CSS modular global sin dependencia runtime adicional.
-- Estado cliente con `useReducer`.
+- Estado cliente con `useState`.
 - Seed inicial en TypeScript.
 - Persistencia en `localStorage`.
 
@@ -15,23 +15,22 @@
 - `src/lib/data.ts`: datos seed y tipos.
 - `src/app/globals.css`: look & feel ADA.
 
-## Runtime Rules
+## Authorization Rules
 
-Application mode:
+- `Application Manager` puede crear aplicaciones/colectivos y solicitar autorizacion Application &rarr; Agent.
+- `AI Engineer` puede crear agentes/MCPs y solicitar autorizacion Agent/ChatApps Collective &rarr; MCP.
+- `Project Owner` puede realizar todas las acciones.
+- `Operations` puede aprobar, aprobar parcialmente o rechazar Authorization Requests.
+- Authorization Requests se filtran por la UUAA seleccionada en el breadcrumb.
+- Un asset solo puede borrarse si no tiene autorizaciones activas ni solicitudes pendientes.
 
-1. Verificar suscripcion activa Application &rarr; Agent.
-2. Verificar suscripcion activa Agent &rarr; MCP.
-3. Evaluar scope: full, read, write o tools especificas.
-4. Si tool critica o requiere aprobacion, devolver `require approval`.
-5. Si todo cumple, devolver `allow`; si no, `deny`.
+## AWS AgentCore Mapping
 
-Conversational mode:
-
-1. Verificar suscripcion activa Collective &rarr; MCP.
-2. Evaluar scope.
-3. Propagar `endUserIdentity`.
-4. Devolver decision explicada.
+- Agentes: `registryProvider`, `registryAgentId`, `agentVersion`, `runtimeArn`, `deploymentStage`, `identityMode`, `observability`.
+- MCPs: `gatewayId`, `mcpServerId`, `protocol`, `authMode`, `identityMode`, `observability`.
+- Tools: `gatewayRoute`, `toolSchema`, `type`, `resource`, `risk`, `requiresApproval`.
+- La maqueta no llama a AWS; solo usa estos metadatos para preparar el modelo de integracion.
 
 ## Persistence
 
-Los datos creados, solicitudes, suscripciones y auditoria se guardan en `localStorage` bajo `ada-ai-agents-console-state`.
+Los datos creados, solicitudes, autorizaciones y metadatos AWS mock se guardan en `localStorage` bajo `ada-ai-agents-console-state`.
