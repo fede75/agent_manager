@@ -41,7 +41,7 @@
 - La seccion `AI AGENTS` no incluye una opcion propia de Authorization Requests; usa la opcion corporativa existente `Authorizations`.
 - La seccion `AI AGENTS` incluye Skills como repositorio corporativo versionado.
 - El detalle de MCP incluye gestion de tools y listas de consumidores autorizados con revocacion.
-- El detalle de Skill muestra overview, versiones, especificacion Markdown del Skill, agentes consumidores, requests relacionadas, governance y mapping AWS.
+- El detalle de Skill muestra bloques curados de Registry, Governance, Current Version, especificacion Markdown, agentes consumidores y requests relacionadas.
 - El detalle de Agent muestra una unica lista de Skills utilizados, con asociacion por version concreta y solicitudes Agent -> Skill.
 - Los formularios de solicitud de acceso se abren en modal mediante botones `New request` en los listados relacionados.
 - Las opciones de menu que no pertenecen a `AI AGENTS`, excepto `Authorizations`, no cambian la seccion activa; abren un popup/modal con el aviso literal "Funcionlidad no habilitada en la Maqueta. Usar funcionalidades dentro del apartado AI Agents".
@@ -51,8 +51,8 @@
 - Agentes: `registryProvider`, `registryAgentId`, `agentVersion`, `runtimeArn`, `deploymentStage`, `identityMode`, `observability`.
 - MCPs: `gatewayId`, `mcpServerId`, `protocol`, `authMode`, `identityMode`, `observability`.
 - Tools: `gatewayRoute`, `toolSchema`, `type`, `resource`, `risk`, `requiresApproval`.
-- Skills: `registry_provider`, `registry_id`, `registry_record_id`, `registry_record_arn`, `registry_record_status`, `descriptor_type`, `registry_endpoint_type`, `last_sync_status`, `last_sync_date`.
-- Skill Versions: `registry_record_version`, `registry_record_revision_id`, `artifact_format`, `artifact_location`, `definition_json_location`, `specification_markdown`.
+- Skills: `registry_provider`, `registry_id`, `registry_record_id`, `registry_record_arn`, `registry_record_status`, `last_sync_status`, `last_sync_date`.
+- Skill Versions: `version`, `status`, `registry_record_revision_id`, `artifact_format`, `artifact_location`, `specification_markdown`, `published_at`.
 - La maqueta no llama a AWS; solo usa estos metadatos para preparar el modelo de integracion.
 
 ## Persistence

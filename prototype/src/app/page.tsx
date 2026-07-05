@@ -469,7 +469,7 @@ function Skills({ rows, state, query, setQuery, view, setView, onNew, onView, se
           </div>
           {onNew && <button className="btn directory-new" onClick={onNew}>Create Skill</button>}
         </div>
-        {view === "table" ? <div className="panel"><div className="panel-head"><div className="panel-title">✦ Skills</div></div><Rows rows={tableRows} columns={["name","skillId","ownerUuaa","domain","risk","dataClassification","usagePolicy","latestApprovedVersion","status","agentsUsing","pendingRequests","registryProvider","registryStatus"]} onView={onView} /></div> : <div className="directory-card-grid">{tableRows.map((skill: any) => (
+        {view === "table" ? <div className="panel"><div className="panel-head"><div className="panel-title">✦ Skills</div></div><Rows rows={tableRows} columns={["name","skillId","ownerUuaa","domain","risk","usagePolicy","latestApprovedVersion","registryStatus","agentsUsing","pendingRequests"]} onView={onView} /></div> : <div className="directory-card-grid">{tableRows.map((skill: any) => (
           <article className="asset-card" key={skill.id}>
             <div className="asset-card-head">
               <div className="asset-avatar">✦</div>
@@ -543,6 +543,9 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
   const skillVersions = detail.kind === "skill" ? state.skillVersions.filter((version: any) => version.skill_id === asset.id) : [];
   const currentSkillVersion = skillVersions.find((version: any) => version.status === "approved") || skillVersions[0];
   const skillRequests = detail.kind === "skill" ? state.requests.filter((request: any) => request.type === "agent_skill" && request.targetId === asset.id) : [];
+  const skillRegistryRows = detail.kind === "skill" ? [{ id: "registry", provider: asset.registry_provider, registryId: asset.registry_id, recordId: asset.registry_record_id, recordArn: asset.registry_record_arn, recordStatus: asset.registry_record_status, lastSync: `${asset.last_sync_status} · ${asset.last_sync_date}` }] : [];
+  const skillGovernanceRows = detail.kind === "skill" ? [{ id: "governance", ownerUuaa: asset.owner_uuaa, owner: asset.skill_owner, domain: asset.domain, risk: asset.risk_level, dataClassification: asset.data_classification, usagePolicy: asset.usage_policy, governanceRef: asset.governance_reference }] : [];
+  const skillVersionRows = detail.kind === "skill" && currentSkillVersion ? [{ id: currentSkillVersion.id, version: currentSkillVersion.version, status: currentSkillVersion.status, artifactFormat: currentSkillVersion.artifact_format, artifactLocation: currentSkillVersion.artifact_location, registryRevision: currentSkillVersion.registry_record_revision_id, publishedAt: currentSkillVersion.published_at, usedByAgents: state.agentSkillAssociations.filter((association: any) => association.skill_id === asset.id && association.skill_version === currentSkillVersion.version).length }] : [];
   const canRequestAgent = profile === "Project Owner" || profile === "Application Manager";
   const canRequestMcp = profile === "Project Owner" || profile === "AI Engineer";
   const canManageSkills = profile === "Project Owner" || profile === "AI Engineer";
@@ -733,18 +736,20 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
           </>}
 
           {detail.kind === "skill" && <>
-            <div className="split">
-              <div className="panel"><div className="panel-head"><b>Overview</b></div><KeyValues data={asset} /></div>
-              <div className="panel"><div className="panel-head"><b>Governance</b></div><Rows rows={[{ id: "gov", governance_reference: asset.governance_reference, oneTrust: `OT-${asset.owner_uuaa}-SKILL`, risk_level: asset.risk_level, data_classification: asset.data_classification, usage_policy: asset.usage_policy, allowed_uuaas: asset.allowed_uuaas.join(", "), allowed_agent_types: asset.allowed_agent_types.join(", ") }]} columns={["governance_reference","oneTrust","risk_level","data_classification","usage_policy","allowed_uuaas","allowed_agent_types"]} /></div>
+            <div className="panel">
+              <div className="panel-head"><b>Registry</b></div>
+              <Rows rows={skillRegistryRows} columns={["provider","registryId","recordId","recordStatus","lastSync","recordArn"]} />
             </div>
-            <SectionTable title="Versions" rows={skillVersions.map((version: any) => ({ ...version, usedByAgents: state.agentSkillAssociations.filter((association: any) => association.skill_id === asset.id && association.skill_version === version.version).length }))} columns={["version","status","change_type","breaking_change","artifact_format","registry_record_revision_id","compatible_runtimes","usedByAgents","release_notes"]} />
+            <div className="split relation-panel">
+              <div className="panel"><div className="panel-head"><b>Governance</b></div><Rows rows={skillGovernanceRows} columns={["ownerUuaa","owner","domain","risk","dataClassification","usagePolicy","governanceRef"]} /></div>
+              <div className="panel"><div className="panel-head"><b>Current Version</b></div><Rows rows={skillVersionRows} columns={["version","status","artifactFormat","registryRevision","publishedAt","usedByAgents"]} /></div>
+            </div>
             <div className="panel relation-panel">
               <div className="panel-head"><b>Skill Specification</b><span>{currentSkillVersion?.artifact_location}</span></div>
               <div className="markdown-document"><pre>{currentSkillVersion?.specification_markdown || "No SKILL.md specification available for this Skill version."}</pre></div>
             </div>
             <SectionTable title="Agents Using This Skill" rows={skillAssociations.map((association: any) => ({ ...association, agent: entityName(association.agent_id), agentOwner: state.agents.find((agent: any) => agent.id === association.agent_id)?.owner, uuaa: state.agents.find((agent: any) => agent.id === association.agent_id)?.uuaa, versionUsed: association.skill_version, associationStatus: association.authorization_status, upgradePolicy: association.upgrade_policy }))} columns={["agent","agentOwner","uuaa","versionUsed","upgradePolicy","associationStatus"]} />
             <SectionTable title="Authorization Requests" rows={skillRequests.map((request: any) => ({ ...request, agent: entityName(request.sourceId), requestedVersion: request.requestedVersion, risk: request.riskLevel }))} columns={["agent","requestedVersion","requester","approver","risk","status","purpose"]} cancelRequest={cancelRequest} />
-            <div className="panel relation-panel"><div className="panel-head"><b>AWS Mapping</b></div><Rows rows={[{ id: "aws", registryProvider: asset.registry_provider, registryId: asset.registry_id, recordId: asset.registry_record_id, recordArn: asset.registry_record_arn, descriptorType: asset.descriptor_type, recordStatus: asset.registry_record_status, endpointType: asset.registry_endpoint_type, lastSyncStatus: asset.last_sync_status, lastSyncDate: asset.last_sync_date }]} columns={["registryProvider","registryId","recordId","recordArn","descriptorType","recordStatus","endpointType","lastSyncStatus","lastSyncDate"]} /></div>
           </>}
         </div>
       </div>

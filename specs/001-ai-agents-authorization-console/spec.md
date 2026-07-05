@@ -108,8 +108,8 @@ Regla clave: un agente siempre se asocia a una version concreta de un Skill. Nun
 - Borrado de Skills solo si no tienen versiones activas, asociaciones activas ni solicitudes pendientes.
 - Metadatos AgentCore en agentes: registry provider, registry agent id, version, runtime ARN, deployment stage, identity mode y observability.
 - Metadatos AgentCore Gateway en MCPs/tools: gateway id, MCP server id, protocol, auth mode, identity mode, gateway route y tool schema.
-- Metadatos AWS Agent Registry en Skills: registry provider, registry id, record id, record ARN, descriptor type, record status, endpoint type, sync status y sync date.
-- Metadatos AWS Agent Registry en Skill Versions: record version, revision id, artifact format, artifact location y definition JSON location.
+- Metadatos de Registry en Skills limitados a lo esencial: registry provider, registry id, record id, record ARN, record status y last sync.
+- Metadatos de Skill Versions limitados a version, status, artifact format, artifact location, registry revision y published date.
 - Contenido de especificacion Markdown por version de Skill, simulando el `SKILL.md` que se registraria como artefacto versionado.
 - Alertas de gobierno: MCPs sin tools, tools pendientes de clasificacion, accesos criticos, solicitudes pendientes y expiraciones.
 
@@ -142,8 +142,8 @@ La UI debe replicar patrones ADA Console:
 - Tablas densas enterprise.
 - La vista por defecto de aplicaciones y ChatApps Collectives es en cards modernas con opcion de cambiar a tabla.
 - Skills se muestra por defecto en vista cards modernas, con opcion de cambiar a lista/tabla enterprise densa.
-- La lista/tabla de Skills incluye columnas Name, Skill ID, Owner UUAA, Domain, Risk, Data Classification, Usage Policy, Latest Approved Version, Status, Agents Using, Pending Requests, Registry Provider y Registry Status.
-- El detalle de Skill muestra Overview, Versions, Skill Specification, Agents Using This Skill, Authorization Requests, Governance y AWS Mapping como secciones visibles.
+- La lista/tabla de Skills incluye columnas Name, Skill ID, Owner UUAA, Domain, Risk, Usage Policy, Latest Approved Version, Registry Status, Agents Using y Pending Requests.
+- El detalle de Skill se organiza en bloques reducidos y alineados con Registry: Registry, Governance, Current Version, Skill Specification, Agents Using This Skill y Authorization Requests.
 - El detalle de Agent muestra una unica lista de Skills utilizados por el agente, con accion `New request` para asociar o solicitar acceso por version concreta.
 - Las solicitudes de acceso no se muestran como formularios embebidos en las pantallas de detalle; cada listado relacionado ofrece una accion `New request` que abre una ventana/modal de solicitud.
 - Botones azules.
