@@ -5,10 +5,10 @@ import { AppState, AccessLevel, RequestType, seedState, newId, nowStamp } from "
 
 const storageKey = "ada-ai-agents-console-state";
 const disabledMenuMessage = "Funcionlidad no habilitada en la Maqueta. Usar funcionalidades dentro del apartado AI Agents";
-const aiSections = ["Applications", "ChatApps Collectives", "Agents", "MCPs", "Authorization Requests"];
+const aiSections = ["Applications", "ChatApps Collectives", "Agents", "MCPs"];
 const uuaas = ["KDIT", "PAYM", "FRAD", "RISK", "DATA", "CARD", "LOAN", "WLTH"];
 const profiles = ["Project Owner", "Operations", "AI Engineer", "Application Manager"];
-const placeholderSections = ["Catalog", "Data Lake Subscriptions", "Engines", "Models", "SAS Sync", "Data", "Jobs", "Configurations", "Queue", "Projects", "Inferences", "Authorizations", "Reports"];
+const placeholderSections = ["Catalog", "Data Lake Subscriptions", "Engines", "Models", "SAS Sync", "Data", "Jobs", "Configurations", "Queue", "Projects", "Inferences", "Reports"];
 const icons: Record<string, string> = {
   Dashboard: "◉",
   Catalog: "☷",
@@ -29,7 +29,6 @@ const icons: Record<string, string> = {
   Agents: "✣",
   MCPs: "▦",
   Subscriptions: "↔",
-  "Authorization Requests": "☑",
 };
 
 export default function Home() {
@@ -172,7 +171,7 @@ export default function Home() {
         <div className="nav">
           <NavButton label="Projects" section={section} setSection={setSection} setToast={setToast} setDisabledMenuModal={setDisabledMenuModal} disabled />
           <NavButton label="Inferences" section={section} setSection={setSection} setToast={setToast} setDisabledMenuModal={setDisabledMenuModal} disabled />
-          <NavButton label="Authorizations" section={section} setSection={setSection} setToast={setToast} setDisabledMenuModal={setDisabledMenuModal} disabled />
+          <NavButton label="Authorizations" section={section} setSection={setSection} setToast={setToast} setDisabledMenuModal={setDisabledMenuModal} />
         </div>
         <div className="group-title">AI AGENTS</div>
         <div className="nav">{aiSections.map((s) => <NavButton key={s} label={s} section={section} setSection={setSection} setToast={setToast} setDisabledMenuModal={setDisabledMenuModal} />)}</div>
@@ -191,7 +190,7 @@ export default function Home() {
           {section === "ChatApps Collectives" && <Directory title="ChatApps Collectives" kind="collective" hint="Los colectivos ChatApps representan grupos de usuarios que utilizan asistentes conversacionales enterprise como ChatGPT Enterprise o Gemini Enterprise." rows={state.collectives} state={state} columns={["name","owner","businessArea","country","platform","status"]} query={query} setQuery={setQuery} view={directoryViews["ChatApps Collectives"]} setView={(view: "table" | "cards") => setDirectoryViews((views) => ({ ...views, "ChatApps Collectives": view }))} onNew={canCreateApplication ? () => setModal("collective") : undefined} onView={(id: string) => setDetail({ kind: "collective", id })} onDelete={canCreateApplication ? (id: string) => deleteAsset("collective", id) : undefined} />}
           {section === "Agents" && <Inventory title="Agents" hint={`Los agentes encapsulan capacidades de IA y se alinean con Amazon Bedrock AgentCore Registry como catalogo de lifecycle, Runtime, Identity y observabilidad. Mostrando solo agentes de la UUAA ${selectedUuaa}.`} rows={scopedAgents} columns={["uuaa","name","type","registryAgentId","agentVersion","deploymentStage","identityMode","criticality","status"]} query={query} setQuery={setQuery} onNew={canManageAiAssets ? () => setModal("agent") : undefined} onView={(id: string) => setDetail({ kind: "agent", id })} onDelete={canManageAiAssets ? (id: string) => deleteAsset("agent", id) : undefined} />}
           {section === "MCPs" && <Mcps state={{ ...state, mcps: scopedMcps }} query={query} setQuery={setQuery} onNew={canManageAiAssets ? () => setModal("mcp") : undefined} onView={(id: string) => setDetail({ kind: "mcp", id })} onDelete={canManageAiAssets ? (id: string) => deleteAsset("mcp", id) : undefined} selectedUuaa={selectedUuaa} />}
-          {section === "Authorization Requests" && <AuthorizationRequests requests={scopedRequests} entityName={entityName} decide={decide} canApprove={canApproveRequests} selectedUuaa={selectedUuaa} />}
+          {section === "Authorizations" && <AuthorizationRequests requests={scopedRequests} entityName={entityName} decide={decide} canApprove={canApproveRequests} selectedUuaa={selectedUuaa} />}
           {placeholderSections.includes(section) && <PlaceholderSection section={section} />}
         </div>
       </main>
@@ -284,7 +283,7 @@ function DisabledMenuModal({ close }: any) {
 
 function Dashboard({ state, setSection }: any) {
   const metrics = [["Applications", state.applications.length], ["ChatApps collectives", state.collectives.length], ["Agents", state.agents.length], ["MCPs", state.mcps.length], ["Tools", state.mcps.flatMap((m: any) => m.tools).length], ["Active authorizations", state.subscriptions.filter((s: any) => s.status === "Active").length], ["Pending requests", state.requests.filter((r: any) => r.status === "Pending").length]];
-  return <><p className="hint">Control plane de gobierno para Application &rarr; Agent, Agent &rarr; MCP y ChatApps Collective &rarr; MCP. Use esta pantalla para detectar trabajo pendiente y navegar a los flujos clave.</p><div className="grid">{metrics.map(([k,v]: any) => <div className="metric" key={k}><span>{k}</span><strong>{v}</strong></div>)}</div><div className="split"><div className="panel"><div className="panel-head"><b>Pending approvals</b><button className="btn ghost" onClick={() => setSection("Authorization Requests")}>Open requests</button></div><Rows rows={state.requests.filter((r: any) => r.status === "Pending")} columns={["type","requester","approver","purpose","status"]} /></div><div className="panel"><div className="panel-head"><b>Governance alerts</b></div><table><tbody><tr><td>Critical tools require human approval</td><td><span className="badge Critical">Critical</span></td></tr><tr><td>New MCP tools blocked until classified</td><td><span className="badge Medium">Medium</span></td></tr><tr><td>End user identity must be propagated to MCP runtime</td><td><span className="badge High">High</span></td></tr></tbody></table></div></div></>;
+  return <><p className="hint">Control plane de gobierno para Application &rarr; Agent, Agent &rarr; MCP y ChatApps Collective &rarr; MCP. Use esta pantalla para detectar trabajo pendiente y navegar a los flujos clave.</p><div className="grid">{metrics.map(([k,v]: any) => <div className="metric" key={k}><span>{k}</span><strong>{v}</strong></div>)}</div><div className="split"><div className="panel"><div className="panel-head"><b>Pending approvals</b><button className="btn ghost" onClick={() => setSection("Authorizations")}>Open requests</button></div><Rows rows={state.requests.filter((r: any) => r.status === "Pending")} columns={["type","requester","approver","purpose","status"]} /></div><div className="panel"><div className="panel-head"><b>Governance alerts</b></div><table><tbody><tr><td>Critical tools require human approval</td><td><span className="badge Critical">Critical</span></td></tr><tr><td>New MCP tools blocked until classified</td><td><span className="badge Medium">Medium</span></td></tr><tr><td>End user identity must be propagated to MCP runtime</td><td><span className="badge High">High</span></td></tr></tbody></table></div></div></>;
 }
 
 function PlaceholderSection({ section }: any) {

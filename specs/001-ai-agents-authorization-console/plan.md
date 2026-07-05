@@ -22,7 +22,7 @@
 - `Project Owner` o el owner del colectivo puede solicitar autorizacion ChatApps Collective &rarr; MCP.
 - `Project Owner` puede realizar todas las acciones.
 - `Operations` puede aprobar, aprobar parcialmente o rechazar Authorization Requests.
-- Authorization Requests se filtran por la UUAA seleccionada en el breadcrumb.
+- Authorization Requests se accede desde `PLATFORM > Authorizations` y se filtran por la UUAA seleccionada en el breadcrumb.
 - Un asset solo puede borrarse si no tiene autorizaciones activas ni solicitudes pendientes.
 - Las aplicaciones nunca solicitan MCPs directamente; solicitan agentes.
 - Los colectivos ChatApps no solicitan agentes; solicitan MCPs directamente.
@@ -33,8 +33,9 @@
 
 - Applications y ChatApps Collectives abren por defecto en vista cards.
 - Ambas vistas mantienen un toggle para alternar cards/tabla.
+- La seccion `AI AGENTS` no incluye una opcion propia de Authorization Requests; usa la opcion corporativa existente `Authorizations`.
 - El detalle de MCP incluye gestion de tools y listas de consumidores autorizados con revocacion.
-- Las opciones de menu que no pertenecen a `AI AGENTS` no cambian la seccion activa; abren un popup/modal con el aviso literal "Funcionlidad no habilitada en la Maqueta. Usar funcionalidades dentro del apartado AI Agents".
+- Las opciones de menu que no pertenecen a `AI AGENTS`, excepto `Authorizations`, no cambian la seccion activa; abren un popup/modal con el aviso literal "Funcionlidad no habilitada en la Maqueta. Usar funcionalidades dentro del apartado AI Agents".
 
 ## AWS AgentCore Mapping
 

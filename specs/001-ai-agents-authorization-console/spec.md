@@ -15,7 +15,7 @@ ADA actua como la capa corporativa de gobierno y autorizacion. AWS AgentCore se 
 - ADA Agent equivale a una entrada de AgentCore Registry con lifecycle, version, Runtime ARN, Identity mode y Observability.
 - ADA MCP equivale a un MCP server expuesto por AgentCore Gateway, con gateway id, auth mode, identity propagation y metricas de invocacion.
 - ADA Tool equivale a una tool publicada en Gateway, con route, schema, tipo read/write/critical_action, sensibilidad y aprobacion requerida.
-- ADA Authorization Request es la decision corporativa previa a permitir invocaciones entre Application -> Agent, Agent -> MCP o ChatApps Collective -> MCP.
+- ADA Authorization Request es la decision corporativa previa a permitir invocaciones entre Application -> Agent, Agent -> MCP o ChatApps Collective -> MCP, y se accede desde la seccion existente `Authorizations` del menu ADA.
 - UUAA se mantiene como particion corporativa principal y se usa para filtrar inventarios y solicitudes.
 
 ## Relationships
@@ -47,6 +47,7 @@ ADA actua como la capa corporativa de gobierno y autorizacion. AWS AgentCore se 
 - Solicitudes Application &rarr; Agent.
 - Solicitudes Agent &rarr; MCP.
 - Solicitudes ChatApps Collective &rarr; MCP.
+- La revision y aprobacion de solicitudes se realiza desde la opcion existente `Authorizations`, no desde una opcion duplicada dentro de `AI AGENTS`.
 - Aprobacion, rechazo y aprobacion parcial.
 - Autorizaciones activas visibles desde el detalle de cada asset.
 - Las autorizaciones MCP deben mostrar si el acceso es completo, solo lectura, escritura o especifico por tools.
@@ -78,7 +79,9 @@ La UI debe replicar patrones ADA Console:
 
 - Sidebar azul oscuro.
 - Nueva seccion `AI AGENTS`.
-- Las opciones de menu fuera de `AI AGENTS` se muestran solo para conservar el look & feel ADA Console y, al pulsarlas, deben abrir un popup/modal con el mensaje "Funcionlidad no habilitada en la Maqueta. Usar funcionalidades dentro del apartado AI Agents".
+- `AI AGENTS` contiene Applications, ChatApps Collectives, Agents y MCPs.
+- La opcion existente `Authorizations` dentro de `PLATFORM` abre la gestion de Authorization Requests de la maqueta.
+- Las opciones de menu fuera de `AI AGENTS`, excepto `Authorizations`, se muestran solo para conservar el look & feel ADA Console y, al pulsarlas, deben abrir un popup/modal con el mensaje "Funcionlidad no habilitada en la Maqueta. Usar funcionalidades dentro del apartado AI Agents".
 - Header superior con breadcrumb, acciones e identidad de proyecto.
 - Tablas densas enterprise.
 - La vista por defecto de aplicaciones y ChatApps Collectives es en cards modernas con opcion de cambiar a tabla.
@@ -91,7 +94,8 @@ La UI debe replicar patrones ADA Console:
 ## Acceptance Criteria
 
 - El usuario puede navegar por todas las secciones AI Agents.
-- Al pulsar cualquier opcion de menu fuera de AI Agents, el sistema no navega a una pantalla funcional y abre un popup/modal con "Funcionlidad no habilitada en la Maqueta. Usar funcionalidades dentro del apartado AI Agents".
+- El usuario puede acceder a Authorization Requests desde la opcion existente `Authorizations` del menu `PLATFORM`.
+- Al pulsar cualquier opcion de menu fuera de AI Agents, salvo `Authorizations`, el sistema no navega a una pantalla funcional y abre un popup/modal con "Funcionlidad no habilitada en la Maqueta. Usar funcionalidades dentro del apartado AI Agents".
 - El usuario puede crear entidades y verlas persistidas durante la sesion.
 - El usuario puede crear solicitudes y aprobar/rechazar.
 - Las aprobaciones crean autorizaciones activas.
