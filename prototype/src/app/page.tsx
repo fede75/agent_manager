@@ -40,6 +40,7 @@ export default function Home() {
   const [toast, setToast] = useState("");
   const [selectedUuaa, setSelectedUuaa] = useState("KDIT");
   const [profile, setProfile] = useState("Project Owner");
+  const [directoryViews, setDirectoryViews] = useState<Record<string, "table" | "cards">>({ Applications: "table", "ChatApps Collectives": "table" });
 
   useEffect(() => {
     const saved = localStorage.getItem(storageKey);
@@ -79,8 +80,8 @@ export default function Home() {
   const createRequest = (data: any) => {
     const type = data.type as RequestType;
     const sourceId = data.sourceId || (type === "application_agent" ? state.applications[0]?.id : type === "agent_mcp" ? state.agents[0]?.id : state.collectives[0]?.id);
-    const targetId = data.targetId || (type === "application_agent" ? state.agents[0]?.id : state.mcps[0]?.id);
-    const approver = type === "application_agent" ? state.agents.find((a) => a.id === targetId)?.owner : state.mcps.find((m) => m.id === targetId)?.owner;
+    const targetId = data.targetId || (type === "application_agent" || type === "collective_agent" ? state.agents[0]?.id : state.mcps[0]?.id);
+    const approver = type === "application_agent" || type === "collective_agent" ? state.agents.find((a) => a.id === targetId)?.owner : state.mcps.find((m) => m.id === targetId)?.owner;
     const requester = type === "application_agent" ? state.applications.find((a) => a.id === sourceId)?.owner : type === "agent_mcp" ? state.agents.find((a) => a.id === sourceId)?.owner : state.collectives.find((c) => c.id === sourceId)?.owner;
     const req = { id: newId("req"), status: "Pending", accessLevel: data.requestedAccess, toolIds: data.requestedToolIds || [], requestedToolIds: data.requestedToolIds || [], requester, approver, conditions: "", updated: nowStamp(), ...data, sourceId, targetId };
     setState((s) => ({ ...s, requests: [req, ...s.requests] }));
@@ -121,6 +122,14 @@ export default function Home() {
   const revoke = (id: string) => {
     setState((s) => ({ ...s, subscriptions: s.subscriptions.map((sub) => sub.id === id ? { ...sub, status: "Revoked", updated: nowStamp() } : sub) }));
     audit("Project Owner", "subscription_revoked", id, "deny", "Subscription revoked from console");
+  };
+
+  const addToolToMcp = (mcpId: string, tool: any) => {
+    setState((s) => ({
+      ...s,
+      mcps: s.mcps.map((mcp) => mcp.id === mcpId ? { ...mcp, tools: [...mcp.tools, tool] } : mcp),
+    }));
+    audit("Project Owner", "tool_added", `${mcpId}.${tool.name}`, "allow", "Tool added from MCP detail");
   };
 
   const entityName = (id?: string) => [...state.applications, ...state.collectives, ...state.agents, ...state.mcps].find((e: any) => e.id === id)?.name || id || "-";
@@ -176,15 +185,15 @@ export default function Home() {
         <div className="content">
           {section === "Dashboard" && <Dashboard state={state} setSection={setSection} />}
           {toast && <div className="hint"><b>{toast}</b></div>}
-          {section === "Applications" && <Inventory title="Applications" hint="Las aplicaciones consumidoras son sistemas o canales que solicitan autorizacion para invocar agentes. La gestion de MCPs se realiza desde la pantalla de Agents." rows={state.applications} columns={["name","owner","businessArea","country","environment","status"]} query={query} setQuery={setQuery} onNew={canCreateApplication ? () => setModal("application") : undefined} onView={(id: string) => setDetail({ kind: "application", id })} onDelete={canCreateApplication ? (id: string) => deleteAsset("application", id) : undefined} />}
-          {section === "ChatApps Collectives" && <Inventory title="ChatApps Collectives" hint="Los colectivos ChatApps representan grupos de usuarios que utilizan asistentes conversacionales enterprise como ChatGPT Enterprise o Gemini Enterprise." rows={state.collectives} columns={["name","owner","businessArea","country","platform","status"]} query={query} setQuery={setQuery} onNew={canCreateApplication ? () => setModal("collective") : undefined} onView={(id: string) => setDetail({ kind: "collective", id })} onDelete={canCreateApplication ? (id: string) => deleteAsset("collective", id) : undefined} />}
+          {section === "Applications" && <Directory title="Applications" kind="application" hint="Las aplicaciones consumidoras son sistemas o canales que solicitan autorizacion para invocar agentes. La gestion de MCPs se realiza desde la pantalla de Agents." rows={state.applications} state={state} columns={["name","owner","businessArea","country","environment","status"]} query={query} setQuery={setQuery} view={directoryViews.Applications} setView={(view: "table" | "cards") => setDirectoryViews((views) => ({ ...views, Applications: view }))} onNew={canCreateApplication ? () => setModal("application") : undefined} onView={(id: string) => setDetail({ kind: "application", id })} onDelete={canCreateApplication ? (id: string) => deleteAsset("application", id) : undefined} />}
+          {section === "ChatApps Collectives" && <Directory title="ChatApps Collectives" kind="collective" hint="Los colectivos ChatApps representan grupos de usuarios que utilizan asistentes conversacionales enterprise como ChatGPT Enterprise o Gemini Enterprise." rows={state.collectives} state={state} columns={["name","owner","businessArea","country","platform","status"]} query={query} setQuery={setQuery} view={directoryViews["ChatApps Collectives"]} setView={(view: "table" | "cards") => setDirectoryViews((views) => ({ ...views, "ChatApps Collectives": view }))} onNew={canCreateApplication ? () => setModal("collective") : undefined} onView={(id: string) => setDetail({ kind: "collective", id })} onDelete={canCreateApplication ? (id: string) => deleteAsset("collective", id) : undefined} />}
           {section === "Agents" && <Inventory title="Agents" hint={`Los agentes encapsulan capacidades de IA y se alinean con Amazon Bedrock AgentCore Registry como catalogo de lifecycle, Runtime, Identity y observabilidad. Mostrando solo agentes de la UUAA ${selectedUuaa}.`} rows={scopedAgents} columns={["uuaa","name","type","registryAgentId","agentVersion","deploymentStage","identityMode","criticality","status"]} query={query} setQuery={setQuery} onNew={canManageAiAssets ? () => setModal("agent") : undefined} onView={(id: string) => setDetail({ kind: "agent", id })} onDelete={canManageAiAssets ? (id: string) => deleteAsset("agent", id) : undefined} />}
           {section === "MCPs" && <Mcps state={{ ...state, mcps: scopedMcps }} query={query} setQuery={setQuery} onNew={canManageAiAssets ? () => setModal("mcp") : undefined} onView={(id: string) => setDetail({ kind: "mcp", id })} onDelete={canManageAiAssets ? (id: string) => deleteAsset("mcp", id) : undefined} selectedUuaa={selectedUuaa} />}
           {section === "Authorization Requests" && <AuthorizationRequests requests={scopedRequests} entityName={entityName} decide={decide} canApprove={canApproveRequests} selectedUuaa={selectedUuaa} />}
           {placeholderSections.includes(section) && <PlaceholderSection section={section} />}
         </div>
       </main>
-      {detail && <DetailModal detail={detail} close={() => setDetail(null)} state={state} entityName={entityName} createRequest={createRequest} deleteAsset={deleteAsset} cancelRequest={cancelRequest} selectedUuaa={selectedUuaa} uuaas={uuaas} profile={profile} />}
+      {detail && <DetailModal detail={detail} close={() => setDetail(null)} state={state} entityName={entityName} createRequest={createRequest} deleteAsset={deleteAsset} cancelRequest={cancelRequest} revoke={revoke} addToolToMcp={addToolToMcp} selectedUuaa={selectedUuaa} uuaas={uuaas} profile={profile} />}
       {modal && <EntityModal modal={modal} close={() => setModal(null)} state={state} addEntity={addEntity} createRequest={createRequest} selectedUuaa={selectedUuaa} uuaas={uuaas} />}
     </div>
   );
@@ -273,6 +282,88 @@ function Inventory({ title, hint, rows, columns, query, setQuery, onNew, onView,
   return <><p className="hint">{hint}</p><div className="panel"><div className="panel-head"><div className="panel-title">{icons[title] || "▣"} {title}</div><div className="toolbar"><input className="search" placeholder={`Search ${title.toLowerCase()} by name...`} value={query} onChange={(e) => setQuery(e.target.value)} />{onNew && <button className="btn" onClick={onNew}>+ New</button>}</div></div><Rows rows={filtered} columns={columns} onView={onView} onDelete={onDelete} /></div></>;
 }
 
+function Directory({ title, kind, hint, rows, state, columns, query, setQuery, view, setView, onNew, onView, onDelete }: any) {
+  const filtered = rows.filter((r: any) => JSON.stringify(r).toLowerCase().includes(query.toLowerCase())).sort((a: any, b: any) => Number((b.uuaa || "").toLowerCase().startsWith(query.toLowerCase())) - Number((a.uuaa || "").toLowerCase().startsWith(query.toLowerCase())));
+  const isApplication = kind === "application";
+  const relationTypes = isApplication ? ["application_agent"] : ["collective_agent", "collective_mcp"];
+  const activeRelations = (id: string) => state.subscriptions.filter((sub: any) => relationTypes.includes(sub.type) && sub.sourceId === id && sub.status !== "Revoked");
+  const pendingRelations = (id: string) => state.requests.filter((request: any) => relationTypes.includes(request.type) && request.sourceId === id && request.status === "Pending");
+  const totalActive = filtered.reduce((sum: number, item: any) => sum + activeRelations(item.id).length, 0);
+  const totalPending = filtered.reduce((sum: number, item: any) => sum + pendingRelations(item.id).length, 0);
+  const uuaaCount = new Set(filtered.map((item: any) => item.uuaa || "KDIT")).size;
+  const prodCount = filtered.filter((item: any) => item.environment === "prod" || item.platform).length;
+  const metrics = [
+    ["Assets", filtered.length],
+    ["Active auth", totalActive],
+    ["Pending", totalPending],
+    ["UUAAs", uuaaCount],
+  ];
+  const alertText = totalPending ? `${totalPending} authorization requests pending approval` : "No pending authorization requests";
+
+  return (
+    <>
+      <p className="hint">{hint}</p>
+      <div className="directory-shell">
+        <div className="directory-toolbar">
+          <input className="search directory-search" placeholder={`Search ${title.toLowerCase()}...`} value={query} onChange={(e) => setQuery(e.target.value)} />
+          <div className="view-toggle" aria-label="View mode">
+            <button className={view === "cards" ? "active" : ""} onClick={() => setView("cards")} title="Cards view">▦</button>
+            <button className={view === "table" ? "active" : ""} onClick={() => setView("table")} title="Table view">☷</button>
+          </div>
+          {onNew && <button className="btn directory-new" onClick={onNew}>Add New...</button>}
+        </div>
+
+        <div className="directory-overview">
+          <section className="overview-card usage-card">
+            <div className="overview-head"><b>Usage</b><span>{isApplication ? "Channels" : "ChatApps"}</span></div>
+            {metrics.map(([label, value]: any) => <div className="usage-row" key={label}><span>{label}</span><b>{value}</b></div>)}
+          </section>
+          <section className="overview-card alert-card">
+            <div className="overview-head"><b>Alerts</b><span>{totalPending ? "Review" : "OK"}</span></div>
+            <strong>{alertText}</strong>
+            <p>{isApplication ? `${prodCount} production applications in the current result set.` : `${prodCount} collective platforms represented in the current result set.`}</p>
+          </section>
+          <section className="overview-card insight-card">
+            <div className="overview-head"><b>Governance</b><span>Scope</span></div>
+            <strong>{isApplication ? "Application -> Agent" : "Collective -> Agent / MCP"}</strong>
+            <p>Open an asset to request authorization, revoke active subscriptions, or review pending access.</p>
+          </section>
+        </div>
+
+        {view === "table" ? <div className="panel"><div className="panel-head"><div className="panel-title">{icons[title] || "▣"} {title}</div></div><Rows rows={filtered} columns={columns} onView={onView} onDelete={onDelete} /></div> : <div className="directory-card-grid">
+          {filtered.map((item: any) => {
+            const active = activeRelations(item.id);
+            const pending = pendingRelations(item.id);
+            return (
+              <article className="asset-card" key={item.id}>
+                <div className="asset-card-head">
+                  <div className="asset-avatar">{item.name.slice(0, 1)}</div>
+                  <div><h3>{item.name}</h3><p>{item.uuaa || "KDIT"} · {item.country} · {item.environment || item.platform}</p></div>
+                  <button className="btn ghost more-btn" onClick={() => onView(item.id)}>•••</button>
+                </div>
+                <div className="asset-card-body">
+                  <p>{item.description}</p>
+                  <div className="mini-tags"><span>{item.businessArea}</span><span>{item.owner}</span></div>
+                </div>
+                <div className="asset-card-stats">
+                  <div><span>Active auth</span><b>{active.length}</b></div>
+                  <div><span>Pending</span><b>{pending.length}</b></div>
+                  <div><span>Status</span>{badge("status", item.status)}</div>
+                </div>
+                <div className="asset-card-actions">
+                  <button className="btn ghost" onClick={() => onView(item.id)}>View</button>
+                  {onDelete && <button className="btn danger" onClick={() => onDelete(item.id)}>Delete</button>}
+                </div>
+              </article>
+            );
+          })}
+          {!filtered.length && <div className="empty">No assets found.</div>}
+        </div>}
+      </div>
+    </>
+  );
+}
+
 function Rows({ rows, columns, onView, onDelete }: any) {
   const hasActions = onView || onDelete;
   return <table><thead><tr>{columns.map((c: string) => <th key={c}>{c}</th>)}{hasActions && <th>Actions</th>}</tr></thead><tbody>{rows.map((r: any) => <tr key={r.id}>{columns.map((c: string) => <td key={c}>{badge(c, r[c])}</td>)}{hasActions && <td><div className="toolbar">{onView && <button className="btn ghost" onClick={() => onView(r.id)}>View</button>}{onDelete && <button className="btn danger" onClick={() => onDelete(r.id)}>Delete</button>}</div></td>}</tr>)}</tbody></table>;
@@ -290,9 +381,10 @@ function AuthorizationRequests({ requests, entityName, decide, canApprove, selec
 
 function Field({ label, value, set, options }: any) { return <div className="field"><label>{label}</label><select value={value} onChange={(e) => set(e.target.value)}>{options.map((o: any) => <option key={o.id} value={o.id}>{o.name}</option>)}</select></div>; }
 
-function DetailModal({ detail, close, state, entityName, createRequest, deleteAsset, cancelRequest, selectedUuaa, uuaas, profile }: any) {
+function DetailModal({ detail, close, state, entityName, createRequest, deleteAsset, cancelRequest, revoke, addToolToMcp, selectedUuaa, uuaas, profile }: any) {
   const asset = detail.kind === "application" ? state.applications.find((a: any) => a.id === detail.id) : detail.kind === "collective" ? state.collectives.find((c: any) => c.id === detail.id) : detail.kind === "agent" ? state.agents.find((a: any) => a.id === detail.id) : state.mcps.find((m: any) => m.id === detail.id);
   const [request, setRequest] = useState<any>({ uuaa: selectedUuaa, agentId: state.agents.find((a: any) => (a.uuaa || "KDIT") === selectedUuaa)?.id || state.agents[0]?.id, mcpId: state.mcps.find((m: any) => (m.uuaa || "KDIT") === selectedUuaa)?.id || state.mcps[0]?.id, access: "read", requestedToolIds: [], purpose: "Business controlled access", justification: "Requested from asset detail view", expiration: "31-12-2026" });
+  const [toolDraft, setToolDraft] = useState<any>({ name: "", type: "read", resource: "", risk: "Medium" });
   if (!asset) return null;
 
   const activeSubs = state.subscriptions.filter((s: any) => s.status !== "Revoked" && (s.sourceId === asset.id || s.targetId === asset.id || s.mcpId === asset.id));
@@ -303,6 +395,10 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
   const appAgentSubs = detail.kind === "application" ? [
     ...state.subscriptions.filter((s: any) => s.type === "application_agent" && s.sourceId === asset.id && s.status !== "Revoked"),
     ...pendingFor("application_agent", (r: any) => r.sourceId === asset.id),
+  ] : [];
+  const collectiveAgentSubs = detail.kind === "collective" ? [
+    ...state.subscriptions.filter((s: any) => s.type === "collective_agent" && s.sourceId === asset.id && s.status !== "Revoked"),
+    ...pendingFor("collective_agent", (r: any) => r.sourceId === asset.id),
   ] : [];
   const agentApps = detail.kind === "agent" ? [
     ...state.subscriptions.filter((s: any) => s.type === "application_agent" && s.targetId === asset.id && s.status !== "Revoked"),
@@ -320,6 +416,7 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
   ] : [];
   const filteredMcps = state.mcps.filter((m: any) => (m.uuaa || "KDIT") === request.uuaa);
   const selectedMcp = filteredMcps.find((m: any) => m.id === request.mcpId) || filteredMcps[0] || state.mcps[0];
+  const filteredAgents = state.agents.filter((a: any) => (a.uuaa || "KDIT") === request.uuaa);
   const canRequestAgent = profile === "Project Owner" || profile === "Application Manager";
   const canRequestMcp = profile === "Project Owner" || profile === "AI Engineer";
 
@@ -335,6 +432,26 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
       expiration: request.expiration,
     });
     close();
+  };
+
+  const submitCollectiveAgentRequest = () => {
+    createRequest({
+      type: "collective_agent",
+      sourceId: asset.id,
+      targetId: request.agentId,
+      requestedAccess: "full",
+      requestedToolIds: [],
+      purpose: request.purpose,
+      justification: request.justification,
+      expiration: request.expiration,
+    });
+    close();
+  };
+
+  const addToolFromDetail = () => {
+    if (!toolDraft.name.trim()) return;
+    addToolToMcp(asset.id, { id: newId("tool"), description: `${toolDraft.name} over ${toolDraft.resource || "resource"}`, sensitivity: toolDraft.risk, requiresApproval: toolDraft.type !== "read", status: "Active", gatewayRoute: `/tools/${toolDraft.name}`, toolSchema: "json-schema:v1", ...toolDraft });
+    setToolDraft({ name: "", type: "read", resource: "", risk: "Medium" });
   };
 
   const submitAgentMcpRequest = () => {
@@ -373,7 +490,10 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
         <div className="modal-head"><h2>{asset.name}</h2><div className="toolbar"><button className="btn secondary" onClick={close}>Close</button><button className="btn danger" onClick={() => deleteAsset(detail.kind, asset.id)}>{canDelete ? "Delete asset" : "Delete blocked"}</button></div></div>
         <div className="modal-body">
           <p className="hint">{canDelete ? "Este asset no tiene suscripciones activas ni solicitudes pendientes, por lo que puede borrarse." : `No se puede borrar todavia: tiene ${activeSubs.length} suscripciones activas y ${pendingRequests.length} solicitudes pendientes.`}</p>
-          <div className="split">
+          {detail.kind === "application" || detail.kind === "collective" ? <div className="panel">
+            <div className="panel-head"><b>Asset data</b></div>
+            <KeyValues data={asset} />
+          </div> : <div className="split">
             <div className="panel">
               <div className="panel-head"><b>Asset data</b></div>
               <KeyValues data={asset} />
@@ -382,16 +502,17 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
               <div className="panel-head"><b>Related activity</b></div>
               <table><tbody><tr><td>Active subscriptions</td><td>{activeSubs.length}</td></tr><tr><td>Pending requests</td><td>{pendingRequests.length}</td></tr><tr><td>Status</td><td>{badge("status", asset.status)}</td></tr></tbody></table>
             </div>
-          </div>
+          </div>}
 
           {(detail.kind === "agent" || detail.kind === "mcp") && <RegistryMapping kind={detail.kind} asset={asset} />}
 
           {detail.kind === "application" && <>
-            <SectionTable title="Authorized agents" rows={appAgentSubs.map((s: any) => ({ ...s, agent: entityName(s.targetId), actions: s.status === "Pending" ? "Cancel request" : "" }))} columns={["agent","purpose","approver","status","expiration"]} cancelRequest={cancelRequest} />
+            <SectionTable title="Authorized agents" rows={appAgentSubs.map((s: any) => ({ ...s, agent: entityName(s.targetId), actions: s.status === "Pending" ? "Cancel request" : "" }))} columns={["agent","purpose","approver","status","expiration"]} cancelRequest={cancelRequest} revoke={revoke} />
             {canRequestAgent ? <div className="panel">
               <div className="panel-head"><b>Request authorization to invoke an agent</b></div>
               <div className="modal-body form two">
-                <Field label="Agent requested" value={request.agentId} set={(v: string) => setRequest((r: any) => ({ ...r, agentId: v }))} options={state.agents.filter((a: any) => (a.uuaa || "KDIT") === selectedUuaa)} />
+                <Field label="UUAA" value={request.uuaa} set={(v: string) => setRequest((r: any) => ({ ...r, uuaa: v, agentId: state.agents.find((a: any) => (a.uuaa || "KDIT") === v)?.id || "" }))} options={uuaas.map((u: string) => ({ id: u, name: u }))} />
+                <Field label="Agent requested" value={request.agentId} set={(v: string) => setRequest((r: any) => ({ ...r, agentId: v }))} options={filteredAgents} />
                 <div className="field"><label>Purpose</label><input value={request.purpose} onChange={(e) => setRequest((r: any) => ({ ...r, purpose: e.target.value }))} /></div>
                 <div className="field" style={{ gridColumn: "1 / -1" }}><label>Justification</label><textarea value={request.justification} onChange={(e) => setRequest((r: any) => ({ ...r, justification: e.target.value }))} /></div>
                 <button className="btn" onClick={submitApplicationAgentRequest}>Submit Agent Acces Request!</button>
@@ -419,12 +540,35 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
 
           {detail.kind === "mcp" && <>
             <SectionTable title="Tools" rows={asset.tools} columns={["name","type","gatewayRoute","toolSchema","resource","risk","requiresApproval","status"]} />
+            <div className="panel relation-panel">
+              <div className="panel-head"><b>Add tool</b></div>
+              <div className="modal-body">
+                <div className="tool-editor">
+                  <input placeholder="Tool name" value={toolDraft.name} onChange={(e) => setToolDraft((t: any) => ({ ...t, name: e.target.value }))} />
+                  <select value={toolDraft.type} onChange={(e) => setToolDraft((t: any) => ({ ...t, type: e.target.value }))}><option value="read">read</option><option value="write">write</option><option value="critical_action">critical_action</option></select>
+                  <input placeholder="Resource" value={toolDraft.resource} onChange={(e) => setToolDraft((t: any) => ({ ...t, resource: e.target.value }))} />
+                  <select value={toolDraft.risk} onChange={(e) => setToolDraft((t: any) => ({ ...t, risk: e.target.value }))}><option>Medium</option><option>High</option><option>Critical</option></select>
+                  <button className="btn" type="button" onClick={addToolFromDetail}>Add tool</button>
+                </div>
+              </div>
+            </div>
             <SectionTable title="Authorized agents" rows={mcpAgents.map((s: any) => ({ ...s, agent: entityName(s.sourceId) }))} columns={["agent","accessLevel","conditions","requester","status","expiration"]} />
             <SectionTable title="Authorized ChatApps collectives" rows={mcpCollectives.map((s: any) => ({ ...s, collective: entityName(s.sourceId) }))} columns={["collective","accessLevel","conditions","requester","status","expiration"]} />
           </>}
 
           {detail.kind === "collective" && <>
-            <SectionTable title="Authorized MCPs" rows={collectiveMcps.map((s: any) => ({ ...s, mcp: entityName(s.targetId) }))} columns={["mcp","accessLevel","conditions","approver","status","expiration"]} cancelRequest={cancelRequest} />
+            <SectionTable title="Authorized agents" rows={collectiveAgentSubs.map((s: any) => ({ ...s, agent: entityName(s.targetId) }))} columns={["agent","purpose","approver","status","expiration"]} cancelRequest={cancelRequest} revoke={revoke} />
+            {canRequestAgent ? <div className="panel">
+              <div className="panel-head"><b>Request authorization to invoke an agent</b></div>
+              <div className="modal-body form two">
+                <Field label="UUAA" value={request.uuaa} set={(v: string) => setRequest((r: any) => ({ ...r, uuaa: v, agentId: state.agents.find((a: any) => (a.uuaa || "KDIT") === v)?.id || "" }))} options={uuaas.map((u: string) => ({ id: u, name: u }))} />
+                <Field label="Agent requested" value={request.agentId} set={(v: string) => setRequest((r: any) => ({ ...r, agentId: v }))} options={filteredAgents} />
+                <div className="field"><label>Purpose</label><input value={request.purpose} onChange={(e) => setRequest((r: any) => ({ ...r, purpose: e.target.value }))} /></div>
+                <div className="field" style={{ gridColumn: "1 / -1" }}><label>Justification</label><textarea value={request.justification} onChange={(e) => setRequest((r: any) => ({ ...r, justification: e.target.value }))} /></div>
+                <button className="btn" onClick={submitCollectiveAgentRequest}>Submit Agent Acces Request!</button>
+              </div>
+            </div> : <div className="hint">Solo Application Manager o Project Owner pueden solicitar autorizacion para invocar agentes desde un colectivo ChatApps.</div>}
+            <SectionTable title="Authorized MCPs" rows={collectiveMcps.map((s: any) => ({ ...s, mcp: entityName(s.targetId) }))} columns={["mcp","accessLevel","conditions","approver","status","expiration"]} cancelRequest={cancelRequest} revoke={revoke} />
             {canRequestMcp ? <div className="panel">
               <div className="panel-head"><b>Request access to an MCP</b></div>
               <div className="modal-body form two">
@@ -466,9 +610,14 @@ function KeyValues({ data }: any) {
   return <table><tbody>{entries.map(([k, v]) => <tr key={k}><td>{k}</td><td>{typeof v === "string" ? badge(k, v) : String(v)}</td></tr>)}</tbody></table>;
 }
 
-function SectionTable({ title, rows, columns, cancelRequest }: any) {
-  const canCancel = Boolean(cancelRequest);
-  return <div className="panel relation-panel"><div className="panel-head"><b>{title}</b></div>{rows.length ? <table><thead><tr>{columns.map((c: string) => <th key={c}>{c}</th>)}{canCancel && <th>Actions</th>}</tr></thead><tbody>{rows.map((r: any) => <tr key={r.id}>{columns.map((c: string) => <td key={c}>{badge(c, r[c])}</td>)}{canCancel && <td>{r.status === "Pending" ? <button className="btn danger" onClick={() => cancelRequest(r.id)}>Cancel request</button> : "-"}</td>}</tr>)}</tbody></table> : <div className="empty">No related records yet.</div>}</div>;
+function SectionTable({ title, rows, columns, cancelRequest, revoke }: any) {
+  const hasActions = Boolean(cancelRequest || revoke);
+  const action = (row: any) => {
+    if (row.status === "Pending" && cancelRequest) return <button className="btn danger" onClick={() => cancelRequest(row.id)}>Cancel request</button>;
+    if (row.status !== "Pending" && revoke) return <button className="btn danger" onClick={() => revoke(row.id)}>Remove subscription</button>;
+    return "-";
+  };
+  return <div className="panel relation-panel"><div className="panel-head"><b>{title}</b></div>{rows.length ? <table><thead><tr>{columns.map((c: string) => <th key={c}>{c}</th>)}{hasActions && <th>Actions</th>}</tr></thead><tbody>{rows.map((r: any) => <tr key={r.id}>{columns.map((c: string) => <td key={c}>{badge(c, r[c])}</td>)}{hasActions && <td>{action(r)}</td>}</tr>)}</tbody></table> : <div className="empty">No related records yet.</div>}</div>;
 }
 
 function ToolChecklist({ tools, selected, setSelected }: any) {
