@@ -2,18 +2,24 @@ export type Status = "Active" | "Draft" | "Pending" | "Suspended" | "Revoked" | 
 export type ToolType = "read" | "write" | "critical_action";
 export type Risk = "Low" | "Medium" | "High" | "Critical";
 export type AccessLevel = "full" | "read" | "write" | "custom";
-export type RequestType = "application_agent" | "agent_mcp" | "collective_mcp";
+export type RequestType = "application_agent" | "agent_mcp" | "collective_mcp" | "agent_skill";
 export type DeploymentStage = "draft" | "registered" | "certified" | "deployed" | "retired";
 export type IdentityMode = "workload" | "end_user" | "pre_authorized";
 export type AuthMode = "iam" | "oauth" | "api_key" | "none";
+export type SkillUsagePolicy = "open" | "restricted" | "approval_required";
+export type SkillStatus = "draft" | "under_review" | "approved" | "deprecated" | "retired";
+export type SkillVersionStatus = "draft" | "approved" | "deprecated" | "retired";
 
 export type Application = { id: string; name: string; owner: string; businessArea: string; country: string; environment: string; description: string; status: Status; uuaa?: string };
 export type Collective = { id: string; name: string; owner: string; businessArea: string; country: string; platform: string; description: string; status: Status; uuaa?: string };
 export type Agent = { id: string; name: string; type: string; owner: string; businessArea: string; country: string; environment: string; criticality: Risk; description: string; status: Status; uuaa?: string; registryProvider?: string; registryAgentId?: string; agentVersion?: string; runtimeArn?: string; deploymentStage?: DeploymentStage; identityMode?: IdentityMode; observability?: string };
 export type Tool = { id: string; name: string; description: string; type: ToolType; resource: string; sensitivity: Risk; risk: Risk; requiresApproval: boolean; status: Status; gatewayRoute?: string; toolSchema?: string };
 export type Mcp = { id: string; name: string; owner: string; businessArea: string; backendSystem: string; country: string; environment: string; risk: Risk; description: string; status: Status; tools: Tool[]; uuaa?: string; gatewayId?: string; mcpServerId?: string; protocol?: string; authMode?: AuthMode; identityMode?: IdentityMode; observability?: string };
+export type Skill = { id: string; ada_skill_id: string; name: string; description: string; descriptor_type: "AGENT_SKILL"; owner_uuaa: string; skill_owner: string; domain: string; status: SkillStatus; visibility: "public_internal" | "restricted"; usage_policy: SkillUsagePolicy; risk_level: Risk; data_classification: "internal" | "confidential" | "restricted"; allowed_agent_types: string[]; allowed_uuaas: string[]; tags: string[]; governance_reference: string; registry_provider: "AWS_AGENT_REGISTRY" | "INTERNAL" | "GIT" | "OTHER"; registry_id: string; registry_record_id: string; registry_record_arn: string; registry_record_status: "DRAFT" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "DEPRECATED"; registry_endpoint_type: "API" | "MCP_ENDPOINT" | "NONE"; last_sync_status: "never_synced" | "synced" | "sync_error"; last_sync_date: string; created_at: string; updated_at: string };
+export type SkillVersion = { id: string; ada_skill_version_id: string; skill_id: string; version: string; status: SkillVersionStatus; change_type: "patch" | "minor" | "major"; breaking_change: boolean; release_notes: string; registry_record_version: string; registry_record_revision_id: string; artifact_format: "SKILL_MD" | "MARKDOWN_PLUS_JSON" | "CUSTOM_JSON"; artifact_location: string; definition_json_location: string; instruction_summary: string; input_contract: string; output_contract: string; required_tools: string[]; required_mcp_servers: string[]; constraints: string[]; safety_notes: string[]; examples: string[]; compatible_runtimes: string[]; requires_recertification: boolean; published_at: string; deprecated_at: string; retirement_date: string };
+export type AgentSkillAssociation = { id: string; association_id: string; agent_id: string; skill_id: string; skill_version: string; usage_mode: "mandatory" | "optional"; authorization_status: "active" | "revoked" | "pending"; upgrade_policy: "pinned" | "auto_patch"; associated_by: string; associated_at: string; approval_request_id: string };
 export type Subscription = { id: string; type: RequestType; sourceId: string; targetId: string; mcpId?: string; accessLevel: AccessLevel; toolIds: string[]; purpose: string; requester: string; approver: string; status: Status; conditions: string; expiration: string; updated: string };
-export type AccessRequest = Subscription & { requestedAccess: AccessLevel; requestedToolIds: string[]; justification: string };
+export type AccessRequest = Subscription & { requestedAccess: AccessLevel; requestedToolIds: string[]; justification: string; skillId?: string; requestedVersion?: string; approvedVersion?: string; usageModeRequested?: "mandatory" | "optional"; usageModeApproved?: "mandatory" | "optional"; approvalPolicyApplied?: SkillUsagePolicy; riskLevel?: Risk };
 export type AuditEvent = { id: string; timestamp: string; actor: string; action: string; entity: string; decision: string; reason: string; correlationId: string };
 
 export type AppState = {
@@ -21,6 +27,9 @@ export type AppState = {
   collectives: Collective[];
   agents: Agent[];
   mcps: Mcp[];
+  skills: Skill[];
+  skillVersions: SkillVersion[];
+  agentSkillAssociations: AgentSkillAssociation[];
   subscriptions: Subscription[];
   requests: AccessRequest[];
   audit: AuditEvent[];
@@ -59,6 +68,65 @@ const gateway = (id: string, authMode: AuthMode = "iam", identityMode: IdentityM
   authMode,
   identityMode,
   observability: "Gateway invocation metrics enabled",
+});
+
+const skill = (id: string, name: string, owner_uuaa: string, domain: string, risk_level: Risk, usage_policy: SkillUsagePolicy): Skill => ({
+  id,
+  ada_skill_id: id,
+  name,
+  description: `${name} corporate reusable agent skill.`,
+  descriptor_type: "AGENT_SKILL",
+  owner_uuaa,
+  skill_owner: `${domain} Skill Owner`,
+  domain,
+  status: "approved",
+  visibility: usage_policy === "open" ? "public_internal" : "restricted",
+  usage_policy,
+  risk_level,
+  data_classification: risk_level === "Critical" ? "restricted" : risk_level === "High" ? "confidential" : "internal",
+  allowed_agent_types: ["service", "advisor", "review", "risk", "investigation", "operations"],
+  allowed_uuaas: [owner_uuaa, "KDIT", "RISK", "DATA", "FRAD"],
+  tags: [domain.toLowerCase().replaceAll(" ", "-"), usage_policy],
+  governance_reference: `GOV-${id.split(".").pop()?.toUpperCase()}`,
+  registry_provider: "AWS_AGENT_REGISTRY",
+  registry_id: `skill-registry-${owner_uuaa.toLowerCase()}`,
+  registry_record_id: `record-${id.split(".").pop()}`,
+  registry_record_arn: `arn:aws:bedrock-agentcore:eu-west-1:012345678901:skill/${id}`,
+  registry_record_status: "APPROVED",
+  registry_endpoint_type: "NONE",
+  last_sync_status: "synced",
+  last_sync_date: today,
+  created_at: today,
+  updated_at: today,
+});
+
+const skillVersion = (skill_id: string, version: string, change_type: "patch" | "minor" | "major" = "minor", breaking_change = false): SkillVersion => ({
+  id: `${skill_id}:${version}`,
+  ada_skill_version_id: `${skill_id}:${version}`,
+  skill_id,
+  version,
+  status: "approved",
+  change_type,
+  breaking_change,
+  release_notes: `Release ${version} for ${skill_id}`,
+  registry_record_version: version,
+  registry_record_revision_id: `rev-${skill_id.split(".").pop()}-${version.replaceAll(".", "-")}`,
+  artifact_format: "SKILL_MD",
+  artifact_location: `s3://ada-agent-skills/${skill_id}/${version}/SKILL.md`,
+  definition_json_location: `s3://ada-agent-skills/${skill_id}/${version}/definition.json`,
+  instruction_summary: "Reusable operating instructions and guardrails for regulated banking workflows.",
+  input_contract: "Structured customer, case or policy context.",
+  output_contract: "Grounded recommendation, summary or classification with rationale.",
+  required_tools: [],
+  required_mcp_servers: [],
+  constraints: ["No autonomous customer-impacting decision", "Preserve auditability"],
+  safety_notes: ["Escalate low confidence outputs", "Respect data classification"],
+  examples: ["Review input context and produce compliant response."],
+  compatible_runtimes: ["AgentCore Runtime", "ADA Python Runtime"],
+  requires_recertification: breaking_change,
+  published_at: today,
+  deprecated_at: "",
+  retirement_date: "31-12-2026",
 });
 
 export const seedState: AppState = {
@@ -102,6 +170,35 @@ export const seedState: AppState = {
     { id: "mcp-risk", name: "RiskScoringMCP", owner: "Risk Models Owner", businessArea: "Risk", backendSystem: "Risk Scoring", country: "GL", environment: "prod", risk: "High", description: "Risk scoring services.", status: "Active", uuaa: "RISK", ...gateway("risk-scoring", "iam", "pre_authorized"), tools: [tool("t-score", "getCreditRiskScore", "read", "Risk Score", "High"), tool("t-stress", "runStressScenario", "critical_action", "Risk Model", "Critical", true), tool("t-limit", "recommendCreditLimit", "read", "Credit Limit", "High")] },
     { id: "mcp-comp", name: "ComplianceMCP", owner: "Compliance Data Owner", businessArea: "Compliance", backendSystem: "GRC Platform", country: "GL", environment: "prod", risk: "High", description: "Compliance checks and evidence.", status: "Active", uuaa: "RISK", ...gateway("compliance", "oauth", "end_user"), tools: [tool("t-kyc", "getKycStatus", "read", "KYC", "High"), tool("t-sanctions", "screenSanctionsList", "read", "Sanctions", "Critical"), tool("t-evidence", "attachComplianceEvidence", "write", "Evidence", "High", true)] },
   ],
+  skills: [
+    skill("bbva.skill.gdpr-redaction", "GDPR Redaction Skill", "DATA", "Data Governance", "Medium", "approval_required"),
+    skill("bbva.skill.complaint-classification", "Complaint Classification Skill", "KDIT", "Customer Service", "Medium", "restricted"),
+    skill("bbva.skill.fraud-investigation-runbook", "Fraud Investigation Runbook Skill", "FRAD", "Fraud Prevention", "High", "approval_required"),
+    skill("bbva.skill.credit-risk-policy-review", "Credit Risk Policy Review Skill", "RISK", "Risk", "Critical", "approval_required"),
+    skill("bbva.skill.mcp-security-review", "MCP Security Review Skill", "KDIT", "Platform Engineering", "High", "restricted"),
+    skill("bbva.skill.data-product-onboarding", "Data Product Onboarding Skill", "DATA", "Data Governance", "Medium", "open"),
+    skill("bbva.skill.customer-response-drafting", "Customer Response Drafting Skill", "KDIT", "Customer Service", "Low", "open"),
+  ],
+  skillVersions: [
+    skillVersion("bbva.skill.gdpr-redaction", "1.1.0", "minor"),
+    skillVersion("bbva.skill.gdpr-redaction", "1.2.0", "minor"),
+    skillVersion("bbva.skill.complaint-classification", "2.1.0", "minor"),
+    skillVersion("bbva.skill.fraud-investigation-runbook", "3.0.0", "major", true),
+    skillVersion("bbva.skill.credit-risk-policy-review", "1.0.0", "major"),
+    skillVersion("bbva.skill.mcp-security-review", "1.4.0", "minor"),
+    skillVersion("bbva.skill.data-product-onboarding", "1.1.0", "minor"),
+    skillVersion("bbva.skill.customer-response-drafting", "2.2.0", "minor"),
+    skillVersion("bbva.skill.customer-response-drafting", "2.3.0", "minor"),
+  ],
+  agentSkillAssociations: [
+    { id: "ask-1", association_id: "ask-1", agent_id: "agt-customer", skill_id: "bbva.skill.gdpr-redaction", skill_version: "1.2.0", usage_mode: "mandatory", authorization_status: "active", upgrade_policy: "pinned", associated_by: "Customer Service AI Owner", associated_at: today, approval_request_id: "req-skill-1" },
+    { id: "ask-2", association_id: "ask-2", agent_id: "agt-compliance", skill_id: "bbva.skill.gdpr-redaction", skill_version: "1.2.0", usage_mode: "mandatory", authorization_status: "active", upgrade_policy: "pinned", associated_by: "Compliance AI Owner", associated_at: today, approval_request_id: "req-skill-2" },
+    { id: "ask-3", association_id: "ask-3", agent_id: "agt-customer", skill_id: "bbva.skill.complaint-classification", skill_version: "2.1.0", usage_mode: "optional", authorization_status: "active", upgrade_policy: "pinned", associated_by: "Customer Service AI Owner", associated_at: today, approval_request_id: "" },
+    { id: "ask-4", association_id: "ask-4", agent_id: "agt-fraud", skill_id: "bbva.skill.fraud-investigation-runbook", skill_version: "3.0.0", usage_mode: "mandatory", authorization_status: "active", upgrade_policy: "pinned", associated_by: "Fraud AI Owner", associated_at: today, approval_request_id: "req-skill-3" },
+    { id: "ask-5", association_id: "ask-5", agent_id: "agt-credit", skill_id: "bbva.skill.credit-risk-policy-review", skill_version: "1.0.0", usage_mode: "mandatory", authorization_status: "active", upgrade_policy: "pinned", associated_by: "Credit Risk AI Owner", associated_at: today, approval_request_id: "req-skill-4" },
+    { id: "ask-6", association_id: "ask-6", agent_id: "agt-compliance", skill_id: "bbva.skill.mcp-security-review", skill_version: "1.4.0", usage_mode: "optional", authorization_status: "active", upgrade_policy: "pinned", associated_by: "Compliance AI Owner", associated_at: today, approval_request_id: "" },
+    { id: "ask-7", association_id: "ask-7", agent_id: "agt-customer", skill_id: "bbva.skill.customer-response-drafting", skill_version: "2.3.0", usage_mode: "optional", authorization_status: "active", upgrade_policy: "auto_patch", associated_by: "Customer Service AI Owner", associated_at: today, approval_request_id: "" },
+  ],
   subscriptions: [
     { id: "sub-aa-1", type: "application_agent", sourceId: "app-crm", targetId: "agt-customer", accessLevel: "full", toolIds: [], purpose: "Customer support automation", requester: "Customer Service Owner", approver: "Customer Service AI Owner", status: "Active", conditions: "CRM channel only", expiration: "31-12-2026", updated: today },
     { id: "sub-aa-2", type: "application_agent", sourceId: "app-mortgage", targetId: "agt-mortgage", accessLevel: "full", toolIds: [], purpose: "Mortgage assessment", requester: "Mortgage Platform Owner", approver: "Mortgage AI Owner", status: "Active", conditions: "Mortgage advisors only", expiration: "31-12-2026", updated: today },
@@ -117,6 +214,7 @@ export const seedState: AppState = {
     { id: "req-1", type: "application_agent", sourceId: "app-mobile", targetId: "agt-customer", accessLevel: "full", requestedAccess: "full", requestedToolIds: [], toolIds: [], purpose: "Self-service customer care", requester: "Digital Channels Owner", approver: "Customer Service AI Owner", status: "Pending", conditions: "", expiration: "31-12-2026", updated: today, justification: "Mobile channel wants AI-assisted customer answers." },
     { id: "req-2", type: "agent_mcp", sourceId: "agt-payments", targetId: "mcp-payments", mcpId: "mcp-payments", accessLevel: "full", requestedAccess: "full", requestedToolIds: [], toolIds: [], purpose: "Payment operations assistant", requester: "Payments AI Owner", approver: "Payments Owner", status: "Pending", conditions: "", expiration: "30-09-2026", updated: today, justification: "Backoffice assistant needs payment operations tools." },
     { id: "req-3", type: "collective_mcp", sourceId: "col-contact", targetId: "mcp-crm", mcpId: "mcp-crm", accessLevel: "read", requestedAccess: "read", requestedToolIds: [], toolIds: [], purpose: "CRM case lookup from Gemini Enterprise", requester: "Contact Center Owner", approver: "CRM Owner", status: "Pending", conditions: "", expiration: "31-12-2026", updated: today, justification: "Agents need case lookup in conversational assistant." },
+    { id: "req-skill-5", type: "agent_skill", sourceId: "agt-branch", targetId: "bbva.skill.gdpr-redaction", skillId: "bbva.skill.gdpr-redaction", requestedVersion: "1.2.0", approvedVersion: "", usageModeRequested: "mandatory", usageModeApproved: "mandatory", approvalPolicyApplied: "approval_required", riskLevel: "Medium", accessLevel: "full", requestedAccess: "full", requestedToolIds: [], toolIds: [], purpose: "Branch summaries must redact personal data", requester: "Branch AI Owner", approver: "Data Governance Skill Owner", status: "Pending", conditions: "", expiration: "31-12-2026", updated: today, justification: "BranchOperationsAgent needs GDPR-safe summaries." },
   ],
   audit: [
     { id: "aud-1", timestamp: "03-07-2026 11:07:22", actor: "system", action: "seed_loaded", entity: "console", decision: "allow", reason: "Initial financial mock data loaded", correlationId: "ADA-0001" },

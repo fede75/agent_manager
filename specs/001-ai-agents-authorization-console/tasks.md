@@ -20,4 +20,11 @@
 - [x] Eliminar Audit, Policies y Simulator de la funcionalidad visible.
 - [x] Mostrar popup/modal al pulsar opciones de menu fuera de AI Agents.
 - [x] Mover Authorization Requests desde AI Agents a la opcion existente Platform > Authorizations.
+- [x] Anadir Skills al menu AI Agents.
+- [x] Modelar Skill, SkillVersion y AgentSkillAssociation.
+- [x] Cargar datos mock financieros de Skills.
+- [x] Implementar inventario de Skills filtrado por UUAA.
+- [x] Implementar detalle de Skill con versiones, agentes, requests, governance y AWS Mapping.
+- [x] Implementar Skills mandatory/optional en detalle de Agent.
+- [x] Implementar solicitudes Agent -> Skill en Authorizations.
 - [x] Documentar ejecucion local y Vercel.
