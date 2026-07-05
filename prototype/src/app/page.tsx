@@ -80,8 +80,8 @@ export default function Home() {
   const createRequest = (data: any) => {
     const type = data.type as RequestType;
     const sourceId = data.sourceId || (type === "application_agent" ? state.applications[0]?.id : type === "agent_mcp" ? state.agents[0]?.id : state.collectives[0]?.id);
-    const targetId = data.targetId || (type === "application_agent" || type === "collective_agent" ? state.agents[0]?.id : state.mcps[0]?.id);
-    const approver = type === "application_agent" || type === "collective_agent" ? state.agents.find((a) => a.id === targetId)?.owner : state.mcps.find((m) => m.id === targetId)?.owner;
+    const targetId = data.targetId || (type === "application_agent" ? state.agents[0]?.id : state.mcps[0]?.id);
+    const approver = type === "application_agent" ? state.agents.find((a) => a.id === targetId)?.owner : state.mcps.find((m) => m.id === targetId)?.owner;
     const requester = type === "application_agent" ? state.applications.find((a) => a.id === sourceId)?.owner : type === "agent_mcp" ? state.agents.find((a) => a.id === sourceId)?.owner : state.collectives.find((c) => c.id === sourceId)?.owner;
     const req = { id: newId("req"), status: "Pending", accessLevel: data.requestedAccess, toolIds: data.requestedToolIds || [], requestedToolIds: data.requestedToolIds || [], requester, approver, conditions: "", updated: nowStamp(), ...data, sourceId, targetId };
     setState((s) => ({ ...s, requests: [req, ...s.requests] }));
@@ -285,7 +285,7 @@ function Inventory({ title, hint, rows, columns, query, setQuery, onNew, onView,
 function Directory({ title, kind, hint, rows, state, columns, query, setQuery, view, setView, onNew, onView, onDelete }: any) {
   const filtered = rows.filter((r: any) => JSON.stringify(r).toLowerCase().includes(query.toLowerCase())).sort((a: any, b: any) => Number((b.uuaa || "").toLowerCase().startsWith(query.toLowerCase())) - Number((a.uuaa || "").toLowerCase().startsWith(query.toLowerCase())));
   const isApplication = kind === "application";
-  const relationTypes = isApplication ? ["application_agent"] : ["collective_agent", "collective_mcp"];
+  const relationTypes = isApplication ? ["application_agent"] : ["collective_mcp"];
   const activeRelations = (id: string) => state.subscriptions.filter((sub: any) => relationTypes.includes(sub.type) && sub.sourceId === id && sub.status !== "Revoked");
   const pendingRelations = (id: string) => state.requests.filter((request: any) => relationTypes.includes(request.type) && request.sourceId === id && request.status === "Pending");
   const totalActive = filtered.reduce((sum: number, item: any) => sum + activeRelations(item.id).length, 0);
@@ -396,10 +396,6 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
     ...state.subscriptions.filter((s: any) => s.type === "application_agent" && s.sourceId === asset.id && s.status !== "Revoked"),
     ...pendingFor("application_agent", (r: any) => r.sourceId === asset.id),
   ] : [];
-  const collectiveAgentSubs = detail.kind === "collective" ? [
-    ...state.subscriptions.filter((s: any) => s.type === "collective_agent" && s.sourceId === asset.id && s.status !== "Revoked"),
-    ...pendingFor("collective_agent", (r: any) => r.sourceId === asset.id),
-  ] : [];
   const agentApps = detail.kind === "agent" ? [
     ...state.subscriptions.filter((s: any) => s.type === "application_agent" && s.targetId === asset.id && s.status !== "Revoked"),
     ...pendingFor("application_agent", (r: any) => r.targetId === asset.id),
@@ -419,24 +415,20 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
   const filteredAgents = state.agents.filter((a: any) => (a.uuaa || "KDIT") === request.uuaa);
   const canRequestAgent = profile === "Project Owner" || profile === "Application Manager";
   const canRequestMcp = profile === "Project Owner" || profile === "AI Engineer";
+  const toolNames = (mcpId: string, toolIds: string[] = []) => {
+    if (!toolIds.length) return "All tools matching access level";
+    const mcp = state.mcps.find((m: any) => m.id === mcpId);
+    return toolIds.map((toolId: string) => mcp?.tools.find((tool: any) => tool.id === toolId)?.name || toolId).join(", ");
+  };
+  const subscriptionDetail = (subscription: any, mcpId = subscription.mcpId || subscription.targetId) => ({
+    ...subscription,
+    accessScope: subscription.accessLevel || subscription.requestedAccess,
+    toolsScope: toolNames(mcpId, subscription.toolIds || subscription.requestedToolIds || []),
+  });
 
   const submitApplicationAgentRequest = () => {
     createRequest({
       type: "application_agent",
-      sourceId: asset.id,
-      targetId: request.agentId,
-      requestedAccess: "full",
-      requestedToolIds: [],
-      purpose: request.purpose,
-      justification: request.justification,
-      expiration: request.expiration,
-    });
-    close();
-  };
-
-  const submitCollectiveAgentRequest = () => {
-    createRequest({
-      type: "collective_agent",
       sourceId: asset.id,
       targetId: request.agentId,
       requestedAccess: "full",
@@ -522,7 +514,7 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
 
           {detail.kind === "agent" && <>
             <SectionTable title="Consumer applications" rows={agentApps.map((s: any) => ({ ...s, application: entityName(s.sourceId) }))} columns={["application","purpose","requester","status","expiration"]} cancelRequest={cancelRequest} />
-            <SectionTable title="Authorized MCPs" rows={agentMcps.map((s: any) => ({ ...s, mcp: entityName(s.targetId) }))} columns={["mcp","accessLevel","conditions","approver","status","expiration"]} cancelRequest={cancelRequest} />
+            <SectionTable title="Authorized MCPs" rows={agentMcps.map((s: any) => subscriptionDetail({ ...s, mcp: entityName(s.targetId) }))} columns={["mcp","accessScope","toolsScope","conditions","approver","status","expiration"]} cancelRequest={cancelRequest} />
             {canRequestMcp ? <div className="panel">
               <div className="panel-head"><b>Request access to an MCP</b></div>
               <div className="modal-body form two">
@@ -552,23 +544,12 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
                 </div>
               </div>
             </div>
-            <SectionTable title="Authorized agents" rows={mcpAgents.map((s: any) => ({ ...s, agent: entityName(s.sourceId) }))} columns={["agent","accessLevel","conditions","requester","status","expiration"]} />
-            <SectionTable title="Authorized ChatApps collectives" rows={mcpCollectives.map((s: any) => ({ ...s, collective: entityName(s.sourceId) }))} columns={["collective","accessLevel","conditions","requester","status","expiration"]} />
+            <SectionTable title="Authorized agents" rows={mcpAgents.map((s: any) => subscriptionDetail({ ...s, agent: entityName(s.sourceId) }, asset.id))} columns={["agent","accessScope","toolsScope","conditions","requester","status","expiration"]} revoke={revoke} />
+            <SectionTable title="Authorized ChatApps collectives" rows={mcpCollectives.map((s: any) => subscriptionDetail({ ...s, collective: entityName(s.sourceId) }, asset.id))} columns={["collective","accessScope","toolsScope","conditions","requester","status","expiration"]} revoke={revoke} />
           </>}
 
           {detail.kind === "collective" && <>
-            <SectionTable title="Authorized agents" rows={collectiveAgentSubs.map((s: any) => ({ ...s, agent: entityName(s.targetId) }))} columns={["agent","purpose","approver","status","expiration"]} cancelRequest={cancelRequest} revoke={revoke} />
-            {canRequestAgent ? <div className="panel">
-              <div className="panel-head"><b>Request authorization to invoke an agent</b></div>
-              <div className="modal-body form two">
-                <Field label="UUAA" value={request.uuaa} set={(v: string) => setRequest((r: any) => ({ ...r, uuaa: v, agentId: state.agents.find((a: any) => (a.uuaa || "KDIT") === v)?.id || "" }))} options={uuaas.map((u: string) => ({ id: u, name: u }))} />
-                <Field label="Agent requested" value={request.agentId} set={(v: string) => setRequest((r: any) => ({ ...r, agentId: v }))} options={filteredAgents} />
-                <div className="field"><label>Purpose</label><input value={request.purpose} onChange={(e) => setRequest((r: any) => ({ ...r, purpose: e.target.value }))} /></div>
-                <div className="field" style={{ gridColumn: "1 / -1" }}><label>Justification</label><textarea value={request.justification} onChange={(e) => setRequest((r: any) => ({ ...r, justification: e.target.value }))} /></div>
-                <button className="btn" onClick={submitCollectiveAgentRequest}>Submit Agent Acces Request!</button>
-              </div>
-            </div> : <div className="hint">Solo Application Manager o Project Owner pueden solicitar autorizacion para invocar agentes desde un colectivo ChatApps.</div>}
-            <SectionTable title="Authorized MCPs" rows={collectiveMcps.map((s: any) => ({ ...s, mcp: entityName(s.targetId) }))} columns={["mcp","accessLevel","conditions","approver","status","expiration"]} cancelRequest={cancelRequest} revoke={revoke} />
+            <SectionTable title="Authorized MCPs" rows={collectiveMcps.map((s: any) => subscriptionDetail({ ...s, mcp: entityName(s.targetId) }))} columns={["mcp","accessScope","toolsScope","conditions","approver","status","expiration"]} cancelRequest={cancelRequest} revoke={revoke} />
             {canRequestMcp ? <div className="panel">
               <div className="panel-head"><b>Request access to an MCP</b></div>
               <div className="modal-body form two">
@@ -576,6 +557,7 @@ function DetailModal({ detail, close, state, entityName, createRequest, deleteAs
                 <Field label="MCP requested" value={request.mcpId} set={(v: string) => setRequest((r: any) => ({ ...r, mcpId: v, requestedToolIds: [] }))} options={filteredMcps} />
                 <div className="field"><label>Access level</label><select value={request.access} onChange={(e) => setRequest((r: any) => ({ ...r, access: e.target.value }))}><option value="read">Read tools</option><option value="write">Write tools</option><option value="full">Full MCP access</option><option value="custom">Specific tools</option></select></div>
                 <div className="field"><label>Purpose</label><input value={request.purpose} onChange={(e) => setRequest((r: any) => ({ ...r, purpose: e.target.value }))} /></div>
+                <div className="field"><label>Expiration</label><input value={request.expiration} onChange={(e) => setRequest((r: any) => ({ ...r, expiration: e.target.value }))} /></div>
                 {request.access === "custom" && <ToolChecklist tools={selectedMcp?.tools || []} selected={request.requestedToolIds} setSelected={(toolIds: string[]) => setRequest((r: any) => ({ ...r, requestedToolIds: toolIds }))} />}
                 <div className="field" style={{ gridColumn: "1 / -1" }}><label>Justification</label><textarea value={request.justification} onChange={(e) => setRequest((r: any) => ({ ...r, justification: e.target.value }))} /></div>
                 <button className="btn" onClick={submitCollectiveMcpRequest}>Submit ChatApps Collective &rarr; MCP request</button>
