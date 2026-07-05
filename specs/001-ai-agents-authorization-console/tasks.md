@@ -25,6 +25,7 @@
 - [x] Modelar Skill, SkillVersion y AgentSkillAssociation.
 - [x] Cargar datos mock financieros de Skills.
 - [x] Implementar inventario de Skills filtrado por UUAA.
+- [x] Implementar vista cards/lista en Skills con cards por defecto.
 - [x] Implementar detalle de Skill con versiones, agentes, requests, governance y AWS Mapping.
 - [x] Implementar Skills mandatory/optional en detalle de Agent.
 - [x] Implementar solicitudes Agent -> Skill en Authorizations.

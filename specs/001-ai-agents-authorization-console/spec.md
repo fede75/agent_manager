@@ -138,7 +138,8 @@ La UI debe replicar patrones ADA Console:
 - Header superior con breadcrumb, acciones e identidad de proyecto.
 - Tablas densas enterprise.
 - La vista por defecto de aplicaciones y ChatApps Collectives es en cards modernas con opcion de cambiar a tabla.
-- Skills se muestra en tabla enterprise densa con columnas Name, Skill ID, Owner UUAA, Domain, Risk, Data Classification, Usage Policy, Latest Approved Version, Status, Agents Using, Pending Requests, Registry Provider y Registry Status.
+- Skills se muestra por defecto en vista cards modernas, con opcion de cambiar a lista/tabla enterprise densa.
+- La lista/tabla de Skills incluye columnas Name, Skill ID, Owner UUAA, Domain, Risk, Data Classification, Usage Policy, Latest Approved Version, Status, Agents Using, Pending Requests, Registry Provider y Registry Status.
 - El detalle de Skill muestra Overview, Versions, Agents Using This Skill, Authorization Requests, Governance y AWS Mapping como secciones visibles.
 - El detalle de Agent muestra Skills mandatory y optional, con acciones para asociar, solicitar acceso, cambiar version, retirar asociacion y ver detalle del Skill.
 - Botones azules.

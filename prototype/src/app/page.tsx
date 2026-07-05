@@ -42,7 +42,7 @@ export default function Home() {
   const [disabledMenuModal, setDisabledMenuModal] = useState(false);
   const [selectedUuaa, setSelectedUuaa] = useState("KDIT");
   const [profile, setProfile] = useState("Project Owner");
-  const [directoryViews, setDirectoryViews] = useState<Record<string, "table" | "cards">>({ "AI Applications": "cards", "ChatApps Collectives": "cards" });
+  const [directoryViews, setDirectoryViews] = useState<Record<string, "table" | "cards">>({ "AI Applications": "cards", "ChatApps Collectives": "cards", Skills: "cards" });
 
   useEffect(() => {
     const saved = localStorage.getItem(storageKey);
@@ -219,7 +219,7 @@ export default function Home() {
           {section === "ChatApps Collectives" && <Directory title="ChatApps Collectives" kind="collective" hint={`Los colectivos ChatApps representan grupos de usuarios que utilizan asistentes conversacionales enterprise como ChatGPT Enterprise o Gemini Enterprise. Mostrando solo colectivos de la UUAA ${selectedUuaa}.`} rows={scopedCollectives} state={state} columns={["name","owner","businessArea","country","platform","status"]} query={query} setQuery={setQuery} view={directoryViews["ChatApps Collectives"]} setView={(view: "table" | "cards") => setDirectoryViews((views) => ({ ...views, "ChatApps Collectives": view }))} onNew={canCreateApplication ? () => setModal("collective") : undefined} onView={(id: string) => setDetail({ kind: "collective", id })} onDelete={canCreateApplication ? (id: string) => deleteAsset("collective", id) : undefined} />}
           {section === "Agents" && <Inventory title="Agents" hint={`Los agentes encapsulan capacidades de IA y se alinean con Amazon Bedrock AgentCore Registry como catalogo de lifecycle, Runtime, Identity y observabilidad. Mostrando solo agentes de la UUAA ${selectedUuaa}.`} rows={scopedAgents} columns={["uuaa","name","type","registryAgentId","agentVersion","deploymentStage","identityMode","criticality","status"]} query={query} setQuery={setQuery} onNew={canManageAiAssets ? () => setModal("agent") : undefined} onView={(id: string) => setDetail({ kind: "agent", id })} onDelete={canManageAiAssets ? (id: string) => deleteAsset("agent", id) : undefined} />}
           {section === "MCPs" && <Mcps state={{ ...state, mcps: scopedMcps }} query={query} setQuery={setQuery} onNew={canManageAiAssets ? () => setModal("mcp") : undefined} onView={(id: string) => setDetail({ kind: "mcp", id })} onDelete={canManageAiAssets ? (id: string) => deleteAsset("mcp", id) : undefined} selectedUuaa={selectedUuaa} />}
-          {section === "Skills" && <Skills rows={scopedSkills} state={state} query={query} setQuery={setQuery} onNew={canManageAiAssets ? () => setModal("skill") : undefined} onView={(id: string) => setDetail({ kind: "skill", id })} selectedUuaa={selectedUuaa} />}
+          {section === "Skills" && <Skills rows={scopedSkills} state={state} query={query} setQuery={setQuery} view={directoryViews.Skills} setView={(view: "table" | "cards") => setDirectoryViews((views) => ({ ...views, Skills: view }))} onNew={canManageAiAssets ? () => setModal("skill") : undefined} onView={(id: string) => setDetail({ kind: "skill", id })} selectedUuaa={selectedUuaa} />}
           {section === "Authorizations" && <AuthorizationRequests requests={scopedRequests} entityName={entityName} decide={decide} canApprove={canApproveRequests} selectedUuaa={selectedUuaa} />}
           {placeholderSections.includes(section) && <PlaceholderSection section={section} />}
         </div>
@@ -434,7 +434,7 @@ function Mcps({ state, query, setQuery, onNew, onView, onDelete }: any) {
   return <><p className="hint">Los MCPs se tratan como servidores expuestos por Amazon Bedrock AgentCore Gateway: ADA gobierna la autorizacion, Gateway publica tools MCP y propaga identidad segun el modo configurado.</p><div className="panel"><div className="panel-head"><div className="panel-title">▦ MCPs</div><div className="toolbar"><input className="search" placeholder="Search MCPs by UUAA or name..." value={query} onChange={(e) => setQuery(e.target.value)} />{onNew && <button className="btn" onClick={onNew}>+ New MCP</button>}</div></div><Rows rows={rows} columns={["uuaa","name","gatewayId","authMode","identityMode","backendSystem","risk","tools","readTools","writeTools","status"]} onView={onView} onDelete={onDelete} /></div></>;
 }
 
-function Skills({ rows, state, query, setQuery, onNew, onView, selectedUuaa }: any) {
+function Skills({ rows, state, query, setQuery, view, setView, onNew, onView, selectedUuaa }: any) {
   const tableRows = rows.filter((skill: any) => JSON.stringify(skill).toLowerCase().includes(query.toLowerCase())).map((skill: any) => {
     const versions = state.skillVersions.filter((version: any) => version.skill_id === skill.id && version.status === "approved");
     const latest = versions.at(-1)?.version || "-";
@@ -452,7 +452,46 @@ function Skills({ rows, state, query, setQuery, onNew, onView, selectedUuaa }: a
       registryStatus: skill.registry_record_status,
     };
   });
-  return <><p className="hint">Repositorio corporativo de Skills reutilizables. Mostrando solo Skills cuyo Owner UUAA es {selectedUuaa}. Los Skills se asocian a agentes por version concreta, nunca por latest.</p><div className="panel"><div className="panel-head"><div className="panel-title">✦ Skills</div><div className="toolbar"><input className="search" placeholder="Search skills by UUAA, domain or name..." value={query} onChange={(e) => setQuery(e.target.value)} />{onNew && <button className="btn" onClick={onNew}>+ Create Skill</button>}</div></div><Rows rows={tableRows} columns={["name","skillId","ownerUuaa","domain","risk","dataClassification","usagePolicy","latestApprovedVersion","status","agentsUsing","pendingRequests","registryProvider","registryStatus"]} onView={onView} /></div></>;
+  const highRisk = tableRows.filter((skill: any) => ["High", "Critical"].includes(skill.risk)).length;
+  const pending = tableRows.reduce((sum: number, skill: any) => sum + skill.pendingRequests, 0);
+  return (
+    <>
+      <p className="hint">Repositorio corporativo de Skills reutilizables. Mostrando solo Skills cuyo Owner UUAA es {selectedUuaa}. Los Skills se asocian a agentes por version concreta, nunca por latest.</p>
+      <div className="directory-shell">
+        <div className="directory-toolbar">
+          <input className="search directory-search" placeholder="Search skills by UUAA, domain or name..." value={query} onChange={(e) => setQuery(e.target.value)} />
+          <div className="view-toggle" aria-label="View mode">
+            <button className={view === "cards" ? "active" : ""} onClick={() => setView("cards")} title="Cards view">▦</button>
+            <button className={view === "table" ? "active" : ""} onClick={() => setView("table")} title="Table view">☷</button>
+          </div>
+          {onNew && <button className="btn directory-new" onClick={onNew}>Create Skill</button>}
+        </div>
+        {view === "table" ? <div className="panel"><div className="panel-head"><div className="panel-title">✦ Skills</div></div><Rows rows={tableRows} columns={["name","skillId","ownerUuaa","domain","risk","dataClassification","usagePolicy","latestApprovedVersion","status","agentsUsing","pendingRequests","registryProvider","registryStatus"]} onView={onView} /></div> : <div className="directory-card-grid">{tableRows.map((skill: any) => (
+          <article className="asset-card" key={skill.id}>
+            <div className="asset-card-head">
+              <div className="asset-avatar">✦</div>
+              <div>
+                <h3>{skill.name}</h3>
+                <p>{skill.skillId}</p>
+              </div>
+              {badge("risk", skill.risk)}
+            </div>
+            <div className="asset-card-body">
+              <p>{skill.domain} · {skill.dataClassification} · {skill.usagePolicy}</p>
+              <div className="mini-tags"><span>{skill.ownerUuaa}</span><span>v{skill.latestApprovedVersion}</span><span>{skill.registryStatus}</span></div>
+            </div>
+            <div className="asset-card-stats">
+              <div><span>Agents</span><b>{skill.agentsUsing}</b></div>
+              <div><span>Pending</span><b>{skill.pendingRequests}</b></div>
+              <div><span>High Risk</span><b>{highRisk}</b></div>
+            </div>
+            <div className="asset-card-actions"><button className="btn ghost" onClick={() => onView(skill.id)}>View</button></div>
+          </article>
+        ))}{!tableRows.length && <div className="empty">No skills found.</div>}</div>}
+        {pending > 0 && <div className="hint"><b>{pending}</b> Skill authorization requests pending review.</div>}
+      </div>
+    </>
+  );
 }
 
 function AuthorizationRequests({ requests, entityName, decide, canApprove, selectedUuaa }: any) {

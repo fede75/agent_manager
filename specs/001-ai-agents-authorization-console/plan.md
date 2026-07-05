@@ -36,7 +36,8 @@
 ## UX Decisions
 
 - AI Applications y ChatApps Collectives abren por defecto en vista cards.
-- Ambas vistas mantienen un toggle para alternar cards/tabla.
+- AI Applications, ChatApps Collectives y Skills abren por defecto en vista cards.
+- Estas vistas mantienen un toggle para alternar cards/tabla.
 - La seccion `AI AGENTS` no incluye una opcion propia de Authorization Requests; usa la opcion corporativa existente `Authorizations`.
 - La seccion `AI AGENTS` incluye Skills como repositorio corporativo versionado.
 - El detalle de MCP incluye gestion de tools y listas de consumidores autorizados con revocacion.
