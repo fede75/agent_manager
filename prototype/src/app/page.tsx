@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AppState, AccessLevel, RequestType, seedState, newId, nowStamp } from "@/lib/data";
 
 const storageKey = "ada-ai-agents-console-state";
+const disabledMenuMessage = "Funcionlidad no habilitada en la Maqueta. Usar funcionalidades dentro del apartado AI Agents";
 const aiSections = ["Applications", "ChatApps Collectives", "Agents", "MCPs", "Authorization Requests"];
 const uuaas = ["KDIT", "PAYM", "FRAD", "RISK", "DATA", "CARD", "LOAN", "WLTH"];
 const profiles = ["Project Owner", "Operations", "AI Engineer", "Application Manager"];
@@ -147,35 +148,35 @@ export default function Home() {
       <aside className="side">
         <div className="brand"><span>ADA</span><span className="brand-mark">Λ</span><span>console</span></div>
         <div className="side-scroll">
-        <div className="nav"><NavButton label="Dashboard" section={section} setSection={setSection} /></div>
+        <div className="nav"><NavButton label="Dashboard" section={section} setSection={setSection} setToast={setToast} disabled /></div>
         <div className="group-title">DATA LAKE</div>
         <div className="nav">
-          <NavButton label="Catalog" section={section} setSection={setSection} badge="NEW" />
-          <NavButton label="Data Lake Subscriptions" section={section} setSection={setSection} />
+          <NavButton label="Catalog" section={section} setSection={setSection} setToast={setToast} badge="NEW" disabled />
+          <NavButton label="Data Lake Subscriptions" section={section} setSection={setSection} setToast={setToast} disabled />
         </div>
         <div className="group-title">SANDBOX</div>
         <div className="nav">
-          <NavButton label="Engines" section={section} setSection={setSection} />
-          <NavButton label="Models" section={section} setSection={setSection} />
-          <NavButton label="SAS Sync" section={section} setSection={setSection} />
-          <NavButton label="Data" section={section} setSection={setSection} />
+          <NavButton label="Engines" section={section} setSection={setSection} setToast={setToast} disabled />
+          <NavButton label="Models" section={section} setSection={setSection} setToast={setToast} disabled />
+          <NavButton label="SAS Sync" section={section} setSection={setSection} setToast={setToast} disabled />
+          <NavButton label="Data" section={section} setSection={setSection} setToast={setToast} disabled />
         </div>
         <div className="group-title">DATAPROC</div>
         <div className="nav">
-          <NavButton label="Jobs" section={section} setSection={setSection} />
-          <NavButton label="Configurations" section={section} setSection={setSection} />
-          <NavButton label="Queue" section={section} setSection={setSection} />
+          <NavButton label="Jobs" section={section} setSection={setSection} setToast={setToast} disabled />
+          <NavButton label="Configurations" section={section} setSection={setSection} setToast={setToast} disabled />
+          <NavButton label="Queue" section={section} setSection={setSection} setToast={setToast} disabled />
         </div>
         <div className="group-title">PLATFORM</div>
         <div className="nav">
-          <NavButton label="Projects" section={section} setSection={setSection} />
-          <NavButton label="Inferences" section={section} setSection={setSection} />
-          <NavButton label="Authorizations" section={section} setSection={setSection} />
+          <NavButton label="Projects" section={section} setSection={setSection} setToast={setToast} disabled />
+          <NavButton label="Inferences" section={section} setSection={setSection} setToast={setToast} disabled />
+          <NavButton label="Authorizations" section={section} setSection={setSection} setToast={setToast} disabled />
         </div>
         <div className="group-title">AI AGENTS</div>
-        <div className="nav">{aiSections.map((s) => <NavButton key={s} label={s} section={section} setSection={setSection} />)}</div>
+        <div className="nav">{aiSections.map((s) => <NavButton key={s} label={s} section={section} setSection={setSection} setToast={setToast} />)}</div>
         <div className="group-title">TOOLS</div>
-        <div className="nav"><NavButton label="Reports" section={section} setSection={setSection} /></div>
+        <div className="nav"><NavButton label="Reports" section={section} setSection={setSection} setToast={setToast} disabled /></div>
         </div>
         <div className="side-footer"><span>BBVA</span><span className="footer-icon">↘</span><span className="footer-icon">▣</span><span className="footer-icon">≪</span></div>
       </aside>
@@ -251,8 +252,16 @@ function normalizeState(saved: AppState): AppState {
   };
 }
 
-function NavButton({ label, section, setSection, badge }: any) {
-  return <button className={section === label ? "active" : ""} onClick={() => setSection(label)}><span>{icons[label]}</span><span className="nav-label">{label.replace("Data Lake ", "")}</span>{badge && <span className="nav-badge">{badge}</span>}</button>;
+function NavButton({ label, section, setSection, setToast, badge, disabled }: any) {
+  const onClick = () => {
+    if (disabled) {
+      setToast(disabledMenuMessage);
+      return;
+    }
+    setToast("");
+    setSection(label);
+  };
+  return <button className={section === label ? "active" : ""} onClick={onClick}><span>{icons[label]}</span><span className="nav-label">{label.replace("Data Lake ", "")}</span>{badge && <span className="nav-badge">{badge}</span>}</button>;
 }
 
 function Dashboard({ state, setSection }: any) {
