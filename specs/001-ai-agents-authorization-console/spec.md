@@ -43,6 +43,7 @@ ADA actua como la capa corporativa de gobierno y autorizacion. AWS AgentCore se 
 - Inventario de colectivos ChatApps.
 - Inventario de agentes con Agent Owner.
 - Inventario de MCPs con MCP Owner y tools.
+- Los inventarios de AI Applications, ChatApps Collectives, Agents y MCPs se filtran por la UUAA seleccionada en el breadcrumb superior.
 - Alta guiada de aplicaciones, colectivos, agentes, MCPs y tools.
 - Solicitudes Application &rarr; Agent.
 - Solicitudes Agent &rarr; MCP.
@@ -101,6 +102,7 @@ La UI debe replicar patrones ADA Console:
 - Las aprobaciones crean autorizaciones activas.
 - La aprobacion parcial Agent/ChatApps Collective &rarr; MCP puede reducir el scope solicitado.
 - La lista Authorization Requests queda filtrada por la UUAA seleccionada.
+- Al cambiar la UUAA seleccionada, AI Applications y ChatApps Collectives muestran solo registros de esa UUAA, igual que Agents y MCPs.
 - Los roles Project Owner, Operations, AI Engineer y Application Manager condicionan las acciones disponibles.
 - El detalle de agentes y MCPs muestra el mapping ADA -> AWS AgentCore.
 - El detalle de colectivos solo permite gestionar autorizaciones ChatApps Collective -> MCP.

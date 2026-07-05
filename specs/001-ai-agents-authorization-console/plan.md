@@ -23,6 +23,7 @@
 - `Project Owner` puede realizar todas las acciones.
 - `Operations` puede aprobar, aprobar parcialmente o rechazar Authorization Requests.
 - Authorization Requests se accede desde `PLATFORM > Authorizations` y se filtran por la UUAA seleccionada en el breadcrumb.
+- Los inventarios de AI Applications, ChatApps Collectives, Agents y MCPs usan el mismo filtro por UUAA seleccionada.
 - Un asset solo puede borrarse si no tiene autorizaciones activas ni solicitudes pendientes.
 - Las aplicaciones nunca solicitan MCPs directamente; solicitan agentes.
 - Los colectivos ChatApps no solicitan agentes; solicitan MCPs directamente.
